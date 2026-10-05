@@ -20,9 +20,41 @@
   }
 
   #connect-overlay {
-    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.95);
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.97);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
   }
+  #connect-overlay .conn-card {
+    background: #0d0d0d; border-radius: 20px;
+    padding: 32px 28px; display: flex; flex-direction: column; align-items: center; gap: 18px;
+    width: min(340px, 90vw);
+  }
+  #connect-overlay input {
+    width: 100%; background: #111; border: 1px solid #333; border-radius: 10px;
+    color: #fff; font-size: .85rem; padding: 10px 14px; text-align: center; outline: none;
+    transition: border-color .2s;
+  }
+  #connect-overlay input:focus { border-color: #60a5fa; }
+  #conn-btn {
+    width: 100%; padding: 12px; border-radius: 12px; font-weight: bold; font-size: .95rem;
+    background: #166534; color: #fff; border: none;
+    transition: background .15s, opacity .15s; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #conn-btn:disabled { opacity: .5; cursor: not-allowed; }
+  #conn-btn:active:not(:disabled) { background: #14532d; }
+  .conn-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: .78rem; color: #555; transition: color .3s;
+  }
+  .conn-step.active { color: #60a5fa; }
+  .conn-step.done   { color: #2d6a3f; }
+  .conn-step.error  { color: #ef4444; }
+  .conn-step .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .conn-step.active .dot { animation: spin .8s linear infinite; border-radius: 0; clip-path: polygon(50% 0%,100% 100%,0% 100%); }
+  #conn-error { font-size: .75rem; color: #ef4444; min-height: 16px; text-align: center; }
 
   /* Joystick */
   .stick-zone {
@@ -132,18 +164,20 @@
 
 <!-- CONNECT OVERLAY -->
 <div id="connect-overlay">
-  <span class="material-icons" style="font-size:2.5rem">sports_esports</span>
-  <span class="text-xl font-bold">Controle da Duquesa</span>
-  <div class="flex flex-col gap-2 items-center">
-    <label class="text-xs text-gray-400">Servidor WebSocket</label>
-    <input id="signal-url" value="ws://192.168.18.101:8080"
-      class="bg-gray-900 text-sm text-white border border-gray-600 rounded px-3 py-2 w-64 text-center"/>
+  <div class="conn-card">
+    <span class="material-icons" style="font-size:2.2rem;color:#60a5fa">sports_esports</span>
+    <span style="font-size:1.1rem;font-weight:bold">Controle da Duquesa</span>
+    <div style="width:100%;display:flex;flex-direction:column;gap:6px">
+      <label style="font-size:.7rem;color:#555">Servidor</label>
+      <input id="signal-url" value="wss://game.mexpenses.com.br/ws"/>
+    </div>
+    <button id="conn-btn" onclick="connect()">
+      <span class="material-icons" style="font-size:1rem">power_settings_new</span>
+      Conectar
+    </button>
+    <span id="conn-status" style="font-size:.8rem;color:#555;min-height:18px"></span>
+    <span id="conn-error" style="font-size:.75rem;color:#ef4444;min-height:16px;text-align:center"></span>
   </div>
-  <button onclick="connect()"
-    class="bg-blue-700 text-white font-bold px-10 py-3 rounded-xl text-base border border-blue-500">
-    Conectar
-  </button>
-  <span id="overlay-status" class="text-xs text-red-400"></span>
 </div>
 
 <!-- KEYBOARD OVERLAY -->
@@ -233,23 +267,32 @@
   <!-- TOP BAR -->
   <div class="flex items-center justify-between px-3 py-1 bg-gray-950 border-b border-gray-800" style="height:36px">
     <!-- ESC (game) / Teclado (pc) -->
-    <div id="top-left-game">
-      <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
-    </div>
-    <div id="top-left-pc" class="hidden">
-      <button class="shoulder text-xs" onclick="toggleKb()"><span class="material-icons" style="font-size:.9rem">keyboard</span> Teclado</button>
+    <div style="width:120px;display:flex;align-items:center;gap:4px">
+      <div id="top-left-game">
+        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
+      </div>
+      <div id="top-left-gta" class="hidden gap-1">
+        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
+        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'z'})">Players</button>
+      </div>
+      <div id="top-left-pc" class="hidden">
+        <button class="shoulder text-xs" onclick="toggleKb()"><span class="material-icons" style="font-size:.9rem">keyboard</span> Teclado</button>
+      </div>
     </div>
 
     <div class="flex gap-2">
       <button onclick="setMode('game')" id="btn-mode-game"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0f2a4a;color:#60a5fa">GAME</button>
+      <button onclick="setMode('gta')" id="btn-mode-gta"
+        class="text-xs px-3 py-1 rounded-full"
+        style="background:#0d0d0d;color:#444">GTA</button>
       <button onclick="setMode('pc')" id="btn-mode-pc"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0d0d0d;color:#444">PC</button>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2" style="width:120px;justify-content:flex-end">
       <span id="ping-status" style="color:#7a3030">● offline</span>
       <button onclick="document.getElementById('connect-overlay').style.display='flex'"
         class="text-gray-600 rounded px-1" style="background:none;font-size:1.1rem"><span class="material-icons">logout</span></button>
@@ -314,7 +357,7 @@
         </div>
       </div>
 
-      <!-- SPACE (apenas modo game) -->
+      <!-- SPACE (modo game) -->
       <div id="game-space" class="mt-3">
         <button id="btn-space"
           class="ctrl-btn w-full py-3 rounded-xl text-sm font-bold"
@@ -323,6 +366,23 @@
           onpointerup="send({action:'keyup',key:'space'})">
           SPACE
         </button>
+      </div>
+
+      <!-- GTA extra buttons -->
+      <div id="gta-space" class="hidden flex-col items-center gap-1 mt-3" style="width:100%">
+        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'h'})">Farol</button>
+        <div class="flex gap-1 items-center" style="width:100%">
+          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'f'})">Entrar</button>
+          <button
+            class="ctrl-btn py-2 rounded-xl text-xs font-bold"
+            style="flex:1;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333"
+            onpointerdown="send({action:'keydown',key:'space'})"
+            onpointerup="send({action:'keyup',key:'space'})">
+            SPACE
+          </button>
+          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'g'})">Sair</button>
+        </div>
+        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'tab'})">Inventário</button>
       </div>
 
     </div>
@@ -417,14 +477,18 @@ function setMode(m) {
   mode = m;
   document.getElementById('btn-mode-game').style.cssText = m==='game'
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
+  document.getElementById('btn-mode-gta').style.cssText = m==='gta'
+    ? 'background:#4a1a0f;color:#fa9060' : 'background:#0d0d0d;color:#444';
   document.getElementById('btn-mode-pc').style.cssText = m==='pc'
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
 
-  show('game-left',   m==='game');
-  show('pc-left',     m==='pc');
-  show('pc-center',   m==='pc');
-  show('game-space',  m==='game');
+  show('game-left',     m==='game' || m==='gta');
+  show('pc-left',       m==='pc');
+  show('pc-center',     m==='pc');
+  show('game-space',    m==='game');
+  show('gta-space',     m==='gta');
   show('top-left-game', m==='game');
+  show('top-left-gta',  m==='gta');
   show('top-left-pc',   m==='pc');
 }
 function show(id, visible) {
@@ -433,14 +497,27 @@ function show(id, visible) {
   el.classList.toggle('flex',    visible);
 }
 
+// ── Connect steps ─────────────────────────────────────────────────────────
+function setStep(id, state) {}
+function resetSteps() {
+  document.getElementById('conn-status').textContent = '';
+  document.getElementById('conn-error').textContent = '';
+}
+function setConnStatus(msg, color) {
+  const el = document.getElementById('conn-status');
+  el.textContent = msg;
+  el.style.color = color || '#555';
+}
+
 // ── Connect ────────────────────────────────────────────────────────────────
-// ── Connect ────────────────────────────────────────────────────────────────
-let _wsUrl = 'ws://192.168.18.101:8080';
+let _wsUrl = 'wss://game.mexpenses.com.br/ws';
 
 async function connect() {
   try { await document.documentElement.requestFullscreen(); } catch {}
   _wsUrl = document.getElementById('signal-url').value.trim();
-  document.getElementById('overlay-status').textContent = 'Conectando...';
+  document.getElementById('conn-btn').disabled = true;
+  resetSteps();
+  setStep('step-ws', 'active');
   openWS();
 }
 
@@ -449,22 +526,30 @@ function openWS() {
   ws = new WebSocket(_wsUrl);
 
   ws.onopen = () => {
+    setStep('step-ws', 'done');
+    setStep('step-reg', 'active');
     ws.send(JSON.stringify({ type:'register', role:'controller', id:CONTROLLER_ID }));
   };
 
   ws.onmessage = async (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'registered') {
-      // aguarda peer-ready antes de mandar offer
-      document.getElementById('overlay-status').textContent = 'Aguardando agent...';
+      setStep('step-reg', 'done');
+      setStep('step-peer', 'active');
     }
-    if (msg.type === 'peer-ready') await startPeer();
+    if (msg.type === 'peer-ready') {
+      setStep('step-peer', 'done');
+      setStep('step-rtc', 'active');
+      await startPeer();
+    }
     if (msg.type === 'answer') await pc.setRemoteDescription({ type:'answer', sdp:msg.sdp });
     if (msg.type === 'ice') try { await pc.addIceCandidate(msg.candidate); } catch {}
   };
 
   ws.onerror = () => {
-    document.getElementById('overlay-status').textContent = 'Erro ao conectar.';
+    setStep('step-ws', 'error');
+    document.getElementById('conn-error').textContent = 'Erro ao conectar ao servidor.';
+    document.getElementById('conn-btn').disabled = false;
   };
 
   ws.onclose = () => {
@@ -523,9 +608,13 @@ function setStatus(ok) {
     startPing();
   }
   if (ok) {
+    setStep('step-rtc', 'done');
+    document.getElementById('conn-btn').disabled = false;
     document.getElementById('connect-overlay').style.display = 'none';
   } else {
-    document.getElementById('overlay-status').textContent = 'Conexão perdida.';
+    resetSteps();
+    document.getElementById('conn-error').textContent = 'Conexão perdida.';
+    document.getElementById('conn-btn').disabled = false;
     document.getElementById('connect-overlay').style.display = 'flex';
   }
 }
@@ -567,17 +656,19 @@ makeStick('wasd-zone', 'wasd-knob', 55, (nx, ny) => {
 });
 
 // ── Mouse joystick ─────────────────────────────────────────────────────────
-const MOUSE_SPEED = 10;
+const MOUSE_SPEED_NORMAL = 10;
+const MOUSE_SPEED_GTA    = 22;
 makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
+  const speed = mode === 'gta' ? MOUSE_SPEED_GTA : MOUSE_SPEED_NORMAL;
   const factor = Math.min(dist, 1);
-  _mouseVx = Math.round(nx * factor * MOUSE_SPEED);
-  _mouseVy = Math.round(ny * factor * MOUSE_SPEED);
-}, () => { _mouseVx = 0; _mouseVy = 0; }, false);
+  _mouseVx = Math.round(nx * factor * speed);
+  _mouseVy = Math.round(ny * factor * speed);
+}, () => { _mouseVx = 0; _mouseVy = 0; }, true);
 
 // ── Scroll pad ─────────────────────────────────────────────────────────────
 (function() {
   const pad = document.getElementById('scroll-pad');
-  let active = false, lastX = 0, lastY = 0, _fbTimeout = null;
+  let activeId = null, lastX = 0, lastY = 0, _fbTimeout = null;
 
   function showFeedback(dy) {
     pad.classList.remove('scrolling-up', 'scrolling-down');
@@ -587,13 +678,14 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
   }
 
   pad.addEventListener('pointerdown', e => {
+    if (activeId !== null) return;
     e.preventDefault();
-    active = true; lastX = e.clientX; lastY = e.clientY;
+    activeId = e.pointerId; lastX = e.clientX; lastY = e.clientY;
     pad.setPointerCapture(e.pointerId);
   });
   pad.addEventListener('pointermove', e => {
     e.preventDefault();
-    if (!active) return;
+    if (e.pointerId !== activeId) return;
     const dx = e.clientX - lastX, dy = e.clientY - lastY;
     if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
       send({ action:'scroll', dx: Math.round(dx), dy: Math.round(dy) });
@@ -601,18 +693,18 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
       lastX = e.clientX; lastY = e.clientY;
     }
   });
-  pad.addEventListener('pointerup',     () => { active = false; });
-  pad.addEventListener('pointercancel', () => { active = false; });
+  pad.addEventListener('pointerup',     e => { if (e.pointerId === activeId) activeId = null; });
+  pad.addEventListener('pointercancel', e => { if (e.pointerId === activeId) activeId = null; });
 })();
 
 // ── Generic stick factory ──────────────────────────────────────────────────
 function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   const zone = document.getElementById(zoneId);
   const knob = document.getElementById(knobId);
-  let active = false, cx = 0, cy = 0, raf = null;
+  let activeId = null, cx = 0, cy = 0, raf = null;
 
   function loop() {
-    if (!active) return;
+    if (activeId === null) return;
     const dist = Math.sqrt(cx*cx + cy*cy);
     const nx = dist > 1 ? cx/dist : cx;
     const ny = dist > 1 ? cy/dist : cy;
@@ -621,10 +713,10 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   }
 
   zone.addEventListener('pointerdown', e => {
-    active = true;
+    if (activeId !== null) return; // ignora segundo dedo no mesmo stick
     const r = zone.getBoundingClientRect();
-    // se o elemento não está visível, getBoundingClientRect retorna zeros
-    if (r.width === 0) { active = false; return; }
+    if (r.width === 0) return;
+    activeId = e.pointerId;
     zone._ox = r.left + r.width/2;
     zone._oy = r.top  + r.height/2;
     zone.setPointerCapture(e.pointerId);
@@ -635,7 +727,7 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   });
 
   zone.addEventListener('pointermove', e => {
-    if (!active) return;
+    if (e.pointerId !== activeId) return;
     cx = e.clientX - zone._ox;
     cy = e.clientY - zone._oy;
     const dist = Math.sqrt(cx*cx + cy*cy);
@@ -644,8 +736,9 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
     if (!continuous) loop();
   });
 
-  function release() {
-    active = false; cx = 0; cy = 0;
+  function release(e) {
+    if (e.pointerId !== activeId) return;
+    activeId = null; cx = 0; cy = 0;
     knob.style.transform = 'translate(-50%,-50%)';
     clearTimeout(raf);
     if (onRelease) onRelease();

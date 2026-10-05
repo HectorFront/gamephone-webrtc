@@ -20,18 +20,17 @@ wss.on("connection", (ws) => {
       clients.set(clientId, ws);
       console.log(`[+] Registered: ${clientId} (${msg.role})`);
       ws.send(JSON.stringify({ type: "registered", id: clientId }));
-      if (msg.role === "agent" && clients.has("controller-1")) {
-        clients.get("controller-1").send(JSON.stringify({ type: "peer-ready", id: clientId }));
+      if (msg.role === 'agent' && clients.has('controller-1')) {
+        clients.get('controller-1').send(JSON.stringify({ type: 'peer-ready', id: clientId }));
       }
-      if (msg.role === "controller" && clients.has("agent-windows")) {
-        ws.send(JSON.stringify({ type: "peer-ready", id: "agent-windows" }));
+      if (msg.role === 'controller' && clients.has('agent-windows')) {
+        ws.send(JSON.stringify({ type: 'peer-ready', id: 'agent-windows' }));
       }
-      // notifica viewer se agent registrou (e vice-versa)
-      if (msg.role === "agent" && clients.has("viewer-1")) {
-        clients.get("viewer-1").send(JSON.stringify({ type: "peer-ready", id: clientId }));
+      if (msg.role === 'agent-stream' && clients.has('viewer-1')) {
+        clients.get('viewer-1').send(JSON.stringify({ type: 'peer-ready', id: clientId }));
       }
-      if (msg.role === "viewer" && clients.has("agent-windows")) {
-        ws.send(JSON.stringify({ type: "peer-ready", id: "agent-windows" }));
+      if (msg.role === 'viewer' && clients.has('stream-agent')) {
+        ws.send(JSON.stringify({ type: 'peer-ready', id: 'stream-agent' }));
       }
       return;
     }

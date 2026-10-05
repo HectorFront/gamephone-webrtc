@@ -8,57 +8,82 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
   video { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #overlay svg { opacity: .7; transition: opacity .15s; }
+  #overlay:hover svg { opacity: 1; }
 </style>
 </head>
 <body>
 <video id="video" autoplay playsinline muted></video>
+<div id="overlay">
+  <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="38" stroke="white" stroke-width="2"/>
+    <polygon points="32,24 60,40 32,56" fill="white"/>
+  </svg>
+</div>
 <script>
-const WS_URL = 'wss://titled-career-pushing-pupils.trycloudflare.com';
+const SIGNAL_URL = 'wss://game.mexpenses.com.br/ws';
+const VIEWER_ID  = 'viewer-1';
+const STREAM_ID  = 'stream-agent';
 
-const video  = document.getElementById('video');
-const mime   = 'video/mp4; codecs="avc1.42E01E"';
-
-let ms = null, sb = null, ws = null;
-const queue  = [];
-let appending = false;
-
-function initMediaSource() {
-  ms = new MediaSource();
-  video.src = URL.createObjectURL(ms);
-
-  ms.addEventListener('sourceopen', () => {
-    sb = ms.addSourceBuffer(mime);
-    sb.mode = 'sequence';
-
-    sb.addEventListener('updateend', () => {
-      appending = false;
-      pump();
-    });
-
-    openWS();
-  }, { once: true });
-}
-
-function pump() {
-  if (appending || !sb || sb.updating || queue.length === 0) return;
-  appending = true;
-  sb.appendBuffer(queue.shift());
-}
+let pc = null, ws = null;
 
 function openWS() {
-  ws = new WebSocket(WS_URL);
-  ws.binaryType = 'arraybuffer';
+  ws = new WebSocket(SIGNAL_URL);
 
-  ws.onmessage = (e) => {
-    queue.push(e.data);
-    pump();
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'register', role: 'viewer', id: VIEWER_ID }));
   };
 
-  ws.onclose = () => setTimeout(initMediaSource, 3000);
+  ws.onmessage = async (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'peer-ready') await startPeer();
+    if (msg.type === 'answer') await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+    if (msg.type === 'ice') try { await pc.addIceCandidate(msg.candidate); } catch {}
+  };
+
+  ws.onclose = () => setTimeout(openWS, 3000);
   ws.onerror = () => ws.close();
 }
 
-initMediaSource();
+async function startPeer() {
+  if (pc) { try { pc.close(); } catch {} }
+  pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+  pc.ontrack = (e) => {
+    const video = document.getElementById('video');
+    if (video.srcObject) return;
+    video.srcObject = e.streams[0];
+  };
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate && ws.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ type: 'ice', to: STREAM_ID, candidate }));
+  };
+
+  pc.addTransceiver('video', { direction: 'recvonly' });
+  pc.addTransceiver('audio', { direction: 'recvonly' });
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  ws.send(JSON.stringify({ type: 'offer', to: STREAM_ID, sdp: offer.sdp }));
+}
+
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('overlay').style.display = 'none';
+  const video = document.getElementById('video');
+  video.muted = false;
+  video.volume = 1;
+  video.play().catch(() => {});
+  document.documentElement.requestFullscreen().catch(() => {});
+});
+
+openWS();
 </script>
 </body>
 </html>

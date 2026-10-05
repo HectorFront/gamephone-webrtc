@@ -6,14 +6,12 @@ const path = require('path');
 const SIGNAL_URL = 'wss://game.mexpenses.com.br/ws';
 const AGENT_ID   = 'agent-windows';
 
-// ── Worker thread para nut-js ──────────────────────────────────────────────
 const worker = new Worker(path.join(__dirname, 'input-worker.js'));
 worker.on('error', e => console.error('[worker error]', e.message));
 
 worker.postMessage({ action: 'init', w: 2560, h: 1440 });
 console.log('[Screen] usando resolução padrão 2560x1440 - ajuste em agent.js se necessário');
 
-// ── Fila com deduplicação ──────────────────────────────────────────────────
 const _queue = [];
 let _busy = false;
 
