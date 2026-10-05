@@ -16,6 +16,11 @@ wss.on("connection", (ws) => {
     try { msg = JSON.parse(raw); } catch { return; }
 
     if (msg.type === "register") {
+      // remove registro antigo do mesmo id se existir
+      if (clients.has(msg.id)) {
+        const old = clients.get(msg.id);
+        if (old !== ws) try { old.close(); } catch {}
+      }
       clientId = msg.id;
       clients.set(clientId, ws);
       console.log(`[+] Registered: ${clientId} (${msg.role})`);
@@ -26,12 +31,22 @@ wss.on("connection", (ws) => {
       if (msg.role === 'controller' && clients.has('agent-windows')) {
         ws.send(JSON.stringify({ type: 'peer-ready', id: 'agent-windows' }));
       }
-      if (msg.role === 'agent-stream' && clients.has('viewer-1')) {
-        clients.get('viewer-1').send(JSON.stringify({ type: 'peer-ready', id: clientId }));
+      if (msg.role === 'agent-stream') {
+        // notifica todos os viewers que estão esperando
+        for (const [id, client] of clients) {
+          if (id.startsWith('viewer-')) {
+            client.send(JSON.stringify({ type: 'peer-ready', id: clientId }));
+          }
+        }
       }
       if (msg.role === 'viewer' && clients.has('stream-agent')) {
         ws.send(JSON.stringify({ type: 'peer-ready', id: 'stream-agent' }));
       }
+      return;
+    }
+
+    if (msg.type === 'ping-signal') {
+      ws.send(JSON.stringify({ type: 'pong-signal' }));
       return;
     }
 
@@ -45,7 +60,7 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     clearInterval(ping);
-    if (clientId) {
+    if (clientId && clients.get(clientId) === ws) {
       clients.delete(clientId);
       console.log(`[-] Disconnected: ${clientId}`);
     }

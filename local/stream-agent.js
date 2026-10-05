@@ -5,7 +5,6 @@ const { spawn } = require('child_process');
 
 const SIGNAL_URL   = 'wss://game.mexpenses.com.br/ws';
 const STREAM_ID    = 'stream-agent';
-const VIEWER_ID    = 'viewer-1';
 // rode: ffmpeg -list_devices true -f dshow -i dummy
 const AUDIO_DEVICE = 'CABLE Output (VB-Audio Virtual Cable)';
 
@@ -56,7 +55,7 @@ function startFFmpeg() {
     '-pix_fmt', 'yuv420p',
     '-threads', '4',
     'pipe:1',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
   ffmpeg.stderr.on('data', (d) => console.error('[ffmpeg]', d.toString().trim()));
 
@@ -93,7 +92,7 @@ function startFFmpeg() {
     '-ar', String(SAMPLE_RATE),
     '-ac', String(CHANNELS),
     'pipe:1',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
   ffmpegAudio.stderr.on('data', (d) => console.error('[ffmpeg-audio]', d.toString().trim()));
 
@@ -132,10 +131,8 @@ function stopFFmpeg() {
 }
 
 // ── WebRTC + Signaling ─────────────────────────────────────────────────────
-let pc  = null;
+const peers = new Map(); // viewerId -> { pc, pendingIce }
 let ws  = null;
-let viewerId = null;
-let _pendingIce = [];
 
 function openWS() {
   ws = new WebSocket(SIGNAL_URL);
@@ -151,11 +148,17 @@ function openWS() {
     console.log('[Signal] msg:', msg.type, 'from:', msg.from);
 
     if (msg.type === 'offer') {
-      viewerId = msg.from;
-      _pendingIce = [];
-      if (pc) { try { pc.close(); } catch {} pc = null; }
+      const viewerId = msg.from;
 
-      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      // fecha conexão anterior deste viewer se existir
+      if (peers.has(viewerId)) {
+        try { peers.get(viewerId).pc.close(); } catch {}
+        peers.delete(viewerId);
+      }
+
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      const entry = { pc, pendingIce: [] };
+      peers.set(viewerId, entry);
 
       pc.onicecandidate = ({ candidate }) => {
         if (candidate && ws.readyState === WebSocket.OPEN)
@@ -163,42 +166,46 @@ function openWS() {
       };
 
       pc.onconnectionstatechange = () => {
-        const conn = pc;
-        if (!conn) return;
-        console.log('[WebRTC] State:', conn.connectionState);
-        if (conn.connectionState === 'connected') startFFmpeg();
-        if (conn.connectionState === 'disconnected' || conn.connectionState === 'failed') {
-          stopFFmpeg();
-          pc = null;
-          try { conn.close(); } catch {}
+        console.log(`[WebRTC:${viewerId}] State:`, pc.connectionState);
+        if (pc.connectionState === 'connected') startFFmpeg();
+        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          peers.delete(viewerId);
+          try { pc.close(); } catch {}
+          if (peers.size === 0) stopFFmpeg();
         }
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
       pc.addTrack(videoTrack, stream);
       pc.addTrack(audioTrack, stream);
-      _pendingIce.forEach(c => { try { pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} });
-      _pendingIce = [];
+      entry.pendingIce.forEach(c => { try { pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} });
+      entry.pendingIce = [];
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       const sdp = answer.sdp
         .replace(/a=rtcp-fb:(.+) transport-cc/g, 'a=rtcp-fb:$1 transport-cc')
         .replace(/(m=video[\s\S]*?)(a=rtpmap)/,
-          '$1a=fmtp:96 x-google-min-bitrate=500;x-google-max-bitrate=2500\r\n$2');
+          '$1a=fmtp:96 x-google-min-bitrate=2000;x-google-max-bitrate=6000\r\n$2');
       ws.send(JSON.stringify({ type: 'answer', to: viewerId, sdp }));
     }
 
     if (msg.type === 'ice') {
-      const c = msg.candidate;
-      if (pc) { try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} }
-      else _pendingIce.push(c);
+      const entry = peers.get(msg.from);
+      if (!entry) return;
+      if (entry.pc.remoteDescription) {
+        try { await entry.pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
+      } else {
+        entry.pendingIce.push(msg.candidate);
+      }
     }
   });
 
   ws.on('close', () => {
     console.log('[Signal] Desconectado, reconectando...');
     stopFFmpeg();
+    peers.forEach(({ pc }) => { try { pc.close(); } catch {} });
+    peers.clear();
     setTimeout(openWS, 3000);
   });
   ws.on('error', (e) => console.error('[Signal] Erro:', e.message));

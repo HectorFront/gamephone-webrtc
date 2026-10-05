@@ -32,11 +32,9 @@ function drain() {
   setImmediate(() => { _busy = false; drain(); });
 }
 
-// ── Aquece node-datachannel na inicialização ────────────────────────────────
 const _warmup = new nodedc.PeerConnection('warmup', { iceServers: [] });
 setTimeout(() => { try { _warmup.close(); } catch {} }, 2000);
 
-// ── WebSocket + WebRTC ─────────────────────────────────────────────────────
 const ws = new WebSocket(SIGNAL_URL);
 let peer = null;
 let controllerId = null;

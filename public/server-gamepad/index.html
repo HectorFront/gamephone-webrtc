@@ -24,9 +24,9 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
   }
   #connect-overlay .conn-card {
-    background: #0d0d0d; border-radius: 20px;
-    padding: 32px 28px; display: flex; flex-direction: column; align-items: center; gap: 18px;
-    width: min(340px, 90vw);
+    background: #0d0d0d; border-radius: 16px;
+    padding: 20px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+    width: min(260px, 85vw);
   }
   #connect-overlay input {
     width: 100%; background: #111; border: 1px solid #333; border-radius: 10px;
@@ -54,7 +54,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .conn-step.active .dot { animation: spin .8s linear infinite; border-radius: 0; clip-path: polygon(50% 0%,100% 100%,0% 100%); }
-  #conn-error { font-size: .75rem; color: #ef4444; min-height: 16px; text-align: center; }
+  #conn-error { font-size: .75rem; color: #ef4444; text-align: center; }
 
   /* Joystick */
   .stick-zone {
@@ -128,7 +128,7 @@
   .mouse-btn:active { filter: brightness(2); transform: scale(.92); }
 
   /* Center column */
-  #center-col { width: clamp(80px, 16vw, 130px); }
+  #center-col { width: clamp(100px, 20vw, 160px); }
 
   /* Keyboard overlay */
   #kb-overlay {
@@ -175,8 +175,10 @@
       <span class="material-icons" style="font-size:1rem">power_settings_new</span>
       Conectar
     </button>
-    <span id="conn-status" style="font-size:.8rem;color:#555;min-height:18px"></span>
-    <span id="conn-error" style="font-size:.75rem;color:#ef4444;min-height:16px;text-align:center"></span>
+    <div style="display:flex;align-items:center;gap:8px;min-height:22px">
+      <span id="conn-status-icon" style="font-size:1rem"></span>
+      <span id="conn-status-text" style="font-size:.78rem;color:#555"></span>
+    </div>
   </div>
 </div>
 
@@ -267,35 +269,36 @@
   <!-- TOP BAR -->
   <div class="flex items-center justify-between px-3 py-1 bg-gray-950 border-b border-gray-800" style="height:36px">
     <!-- ESC (game) / Teclado (pc) -->
-    <div style="width:120px;display:flex;align-items:center;gap:4px">
+    <div style="flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden">
       <div id="top-left-game">
         <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
       </div>
       <div id="top-left-gta" class="hidden gap-1">
         <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
-        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'z'})">Players</button>
+        <button class="shoulder" style="font-size:.6rem;white-space:nowrap" onpointerdown="send({action:'keypress',key:'z'})">Players/Mapa (Z)</button>
       </div>
       <div id="top-left-pc" class="hidden">
         <button class="shoulder text-xs" onclick="toggleKb()"><span class="material-icons" style="font-size:.9rem">keyboard</span> Teclado</button>
       </div>
     </div>
 
-    <div class="flex gap-2">
+    <div class="flex gap-2" style="flex-shrink:0">
       <button onclick="setMode('game')" id="btn-mode-game"
         class="text-xs px-3 py-1 rounded-full"
-        style="background:#0f2a4a;color:#60a5fa">GAME</button>
+        style="background:#0f2a4a;color:#60a5fa">Game (Genérico)</button>
       <button onclick="setMode('gta')" id="btn-mode-gta"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0d0d0d;color:#444">GTA</button>
       <button onclick="setMode('pc')" id="btn-mode-pc"
         class="text-xs px-3 py-1 rounded-full"
-        style="background:#0d0d0d;color:#444">PC</button>
+        style="background:#0d0d0d;color:#444">PC (Desktop)</button>
     </div>
 
-    <div class="flex items-center gap-2" style="width:120px;justify-content:flex-end">
-      <span id="ping-status" style="color:#7a3030">● offline</span>
+    <div class="flex items-center gap-2" style="flex:1;justify-content:flex-end;min-width:0">
+      <span id="ping-status" style="color:#7a3030;white-space:nowrap;min-width:70px;text-align:right">● offline</span>
+      <span style="font-size:.6rem;color:#2d6a3f;white-space:nowrap">Feito para Duquesa 💚</span>
       <button onclick="document.getElementById('connect-overlay').style.display='flex'"
-        class="text-gray-600 rounded px-1" style="background:none;font-size:1.1rem"><span class="material-icons">logout</span></button>
+        class="text-gray-600 rounded px-1" style="background:none;font-size:1.1rem;flex-shrink:0"><span class="material-icons">logout</span></button>
     </div>
   </div>
 
@@ -320,7 +323,17 @@
         <div class="stick-zone" id="wasd-zone" style="width:110px;height:110px">
           <div class="stick-knob" id="wasd-knob" style="width:44px;height:44px"></div>
         </div>
-        <span class="text-xs text-gray-600">WASD</span>
+        <div class="flex items-center gap-2">
+          <div id="gta-run-btns" class="hidden flex-col items-center gap-1">
+            <div class="flex items-center gap-2">
+              <button class="shoulder" id="btn-run" style="font-size:.75rem;padding:6px 10px" onclick="toggleKey('shift','btn-run')">
+                <span class="material-icons" style="font-size:.8rem">directions_run</span> Correr
+              </button>
+              <button class="shoulder" style="font-size:.9rem;padding:6px 14px" onpointerdown="send({action:'keypress',key:'e'})">E</button>
+            </div>
+            <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'h'})">Farol do veículo</button>
+          </div>
+        </div>
       </div>
 
       <!-- PC MODE LEFT: teclado toggle -->
@@ -342,10 +355,10 @@
       <div class="flex flex-col items-center gap-2 flex-1 justify-center">
         <span class="text-xs text-gray-600">Scroll</span>
         <div id="scroll-pad">
-          <span id="scroll-arrow-up" class="material-icons">arrow_upward</span>
-          <div id="scroll-dot"></div>
-          <span id="scroll-arrow-down" class="material-icons">arrow_downward</span>
-        </div>
+            <span id="scroll-arrow-up" class="material-icons">arrow_upward</span>
+            <div id="scroll-dot"></div>
+            <span id="scroll-arrow-down" class="material-icons">arrow_downward</span>
+          </div>
       </div>
 
       <!-- PC center: teclas extras -->
@@ -370,19 +383,19 @@
 
       <!-- GTA extra buttons -->
       <div id="gta-space" class="hidden flex-col items-center gap-1 mt-3" style="width:100%">
-        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'h'})">Farol</button>
-        <div class="flex gap-1 items-center" style="width:100%">
-          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'f'})">Entrar</button>
-          <button
-            class="ctrl-btn py-2 rounded-xl text-xs font-bold"
-            style="flex:1;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333"
-            onpointerdown="send({action:'keydown',key:'space'})"
-            onpointerup="send({action:'keyup',key:'space'})">
-            SPACE
-          </button>
-          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'g'})">Sair</button>
+        <div class="flex gap-1" style="width:100%">
+          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'f'})">Entrar F</button>
+          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'g'})">Bomba G</button>
         </div>
-        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'tab'})">Inventário</button>
+        <button
+          class="ctrl-btn py-3 rounded-xl font-bold"
+          style="width:100%;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333;font-size:.95rem"
+          onpointerdown="send({action:'keydown',key:'space'})"
+          onpointerup="send({action:'keyup',key:'space'})">
+          Pular
+        </button>
+        <button class="shoulder text-xs" id="btn-inv" style="width:100%;text-align:center" onclick="toggleKey('tab','btn-inv')">Inventário TAB</button>
+        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'return'})">Enter</button>
       </div>
 
     </div>
@@ -391,10 +404,11 @@
     <div class="flex flex-col items-center justify-between flex-1">
 
       <!-- Mouse buttons (LMB / RMB) — ambos os modos -->
-      <div class="flex gap-4 justify-center w-full pt-1">
-        <button class="mouse-btn"
-          onpointerdown="send({action:'mousedown',button:'left'})"
-          onpointerup="send({action:'mouseup',button:'left'})">
+      <div class="flex gap-4 justify-center w-full pt-1" style="align-items:center">
+        <button id="btn-hold-left" class="hidden shoulder text-xs" style="padding:8px 4px" onclick="toggleMouseHold('left','btn-hold-left')">Seg.</button>
+        <button class="mouse-btn" id="lmb-btn"
+          onpointerdown="onMouseBtnDown('left')"
+          onpointerup="onMouseBtnUp('left')">
           <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="42" height="54" rx="12" fill="#1e1e1e" stroke="#333"/>
             <path d="M1 13C1 6.373 6.373 1 13 1H22V28H1V13Z" fill="#1a5c30"/>
@@ -403,9 +417,9 @@
             <circle cx="22" cy="38" r="4" fill="#333"/>
           </svg>
         </button>
-        <button class="mouse-btn"
-          onpointerdown="send({action:'mousedown',button:'right'})"
-          onpointerup="send({action:'mouseup',button:'right'})">
+        <button class="mouse-btn" id="rmb-btn"
+          onpointerdown="onMouseBtnDown('right')"
+          onpointerup="onMouseBtnUp('right')">
           <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="42" height="54" rx="12" fill="#1e1e1e" stroke="#333"/>
             <path d="M22 1H31C37.627 1 43 6.373 43 13V28H22V1Z" fill="#5c1a1a"/>
@@ -414,6 +428,7 @@
             <circle cx="22" cy="38" r="4" fill="#333"/>
           </svg>
         </button>
+        <button id="btn-hold-right" class="hidden shoulder text-xs" style="padding:8px 4px" onclick="toggleMouseHold('right','btn-hold-right')">Seg.</button>
       </div>
 
       <!-- Mouse joystick -->
@@ -422,6 +437,27 @@
           <div class="stick-knob" id="mouse-knob" style="width:52px;height:52px"></div>
         </div>
         <span class="text-xs text-gray-600">Mouse</span>
+        <!-- Setas -->
+        <div class="flex flex-col items-center gap-1">
+          <div class="wasd-key" style="width:36px;height:36px"
+            onpointerdown="this.classList.add('active');send({action:'keydown',key:'up'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'up'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'up'})">
+            <span class="material-icons" style="font-size:.9rem">arrow_upward</span>
+          </div>
+          <div class="flex gap-1">
+            <div class="wasd-key" style="width:36px;height:36px"
+              onpointerdown="this.classList.add('active');send({action:'keydown',key:'left'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'left'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'left'})">
+              <span class="material-icons" style="font-size:.9rem">arrow_back</span>
+            </div>
+            <div class="wasd-key" style="width:36px;height:36px"
+              onpointerdown="this.classList.add('active');send({action:'keydown',key:'down'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'down'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'down'})">
+              <span class="material-icons" style="font-size:.9rem">arrow_downward</span>
+            </div>
+            <div class="wasd-key" style="width:36px;height:36px"
+              onpointerdown="this.classList.add('active');send({action:'keydown',key:'right'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'right'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'right'})">
+              <span class="material-icons" style="font-size:.9rem">arrow_forward</span>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -490,6 +526,14 @@ function setMode(m) {
   show('top-left-game', m==='game');
   show('top-left-gta',  m==='gta');
   show('top-left-pc',   m==='pc');
+  document.getElementById('btn-hold-left').classList.toggle('hidden',  m !== 'gta');
+  document.getElementById('btn-hold-right').classList.toggle('hidden', m !== 'gta');
+  document.getElementById('gta-run-btns').classList.toggle('hidden', m !== 'gta');
+  document.getElementById('gta-run-btns').classList.toggle('flex',   m === 'gta');
+  if (m !== 'gta') {
+    if (_mouseHold.left)  toggleMouseHold('left',  'btn-hold-left');
+    if (_mouseHold.right) toggleMouseHold('right', 'btn-hold-right');
+  }
 }
 function show(id, visible) {
   const el = document.getElementById(id);
@@ -498,26 +542,62 @@ function show(id, visible) {
 }
 
 // ── Connect steps ─────────────────────────────────────────────────────────
-function setStep(id, state) {}
+const _stepInfo = {
+  ws:   ['sync', 'Conectando ao servidor...', '#60a5fa'],
+  reg:  ['how_to_reg', 'Registrando controle...',   '#60a5fa'],
+  peer: ['devices', 'Aguardando PC ficar online...', '#a78bfa'],
+  rtc:  ['cable', 'Estabelecendo conexão P2P...', '#60a5fa'],
+};
+function setStep(id, state) {
+  const icon = document.getElementById('conn-status-icon');
+  const text = document.getElementById('conn-status-text');
+  const s = _stepInfo[id];
+  if (!s) return;
+  if (state === 'active') {
+    icon.className = 'material-icons';
+    icon.textContent = s[0];
+    icon.style.color = s[2];
+    text.textContent = s[1];
+    text.style.color = s[2];
+  } else if (state === 'done') {
+    icon.className = 'material-icons';
+    icon.textContent = 'check_circle';
+    icon.style.color = '#2d6a3f';
+    text.style.color = '#2d6a3f';
+  } else if (state === 'error') {
+    icon.className = 'material-icons';
+    icon.textContent = 'error';
+    icon.style.color = '#ef4444';
+    text.style.color = '#ef4444';
+  }
+}
 function resetSteps() {
-  document.getElementById('conn-status').textContent = '';
-  document.getElementById('conn-error').textContent = '';
+  document.getElementById('conn-status-icon').textContent = '';
+  document.getElementById('conn-status-text').textContent = '';
 }
 function setConnStatus(msg, color) {
-  const el = document.getElementById('conn-status');
-  el.textContent = msg;
-  el.style.color = color || '#555';
+  document.getElementById('conn-status-text').textContent = msg;
+  document.getElementById('conn-status-text').style.color = color || '#555';
 }
 
 // ── Connect ────────────────────────────────────────────────────────────────
 let _wsUrl = 'wss://game.mexpenses.com.br/ws';
+let _connTimeout = null;
 
 async function connect() {
   try { await document.documentElement.requestFullscreen(); } catch {}
   _wsUrl = document.getElementById('signal-url').value.trim();
   document.getElementById('conn-btn').disabled = true;
   resetSteps();
-  setStep('step-ws', 'active');
+  setStep('ws', 'active');
+  _connTimeout = setTimeout(() => {
+    const icon = document.getElementById('conn-status-icon');
+    icon.className = 'material-icons'; icon.textContent = 'error'; icon.style.color = '#ef4444';
+    document.getElementById('conn-status-text').textContent = 'Tempo esgotado. Tente novamente.';
+    document.getElementById('conn-status-text').style.color = '#ef4444';
+    document.getElementById('conn-btn').disabled = false;
+    if (ws) { ws.onclose = null; ws.close(); }
+  }, 15000);
   openWS();
 }
 
@@ -526,20 +606,20 @@ function openWS() {
   ws = new WebSocket(_wsUrl);
 
   ws.onopen = () => {
-    setStep('step-ws', 'done');
-    setStep('step-reg', 'active');
+    setStep('ws', 'done');
+    setStep('reg', 'active');
     ws.send(JSON.stringify({ type:'register', role:'controller', id:CONTROLLER_ID }));
   };
 
   ws.onmessage = async (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'registered') {
-      setStep('step-reg', 'done');
-      setStep('step-peer', 'active');
+      setStep('reg', 'done');
+      setStep('peer', 'active');
     }
     if (msg.type === 'peer-ready') {
-      setStep('step-peer', 'done');
-      setStep('step-rtc', 'active');
+      setStep('peer', 'done');
+      setStep('rtc', 'active');
       await startPeer();
     }
     if (msg.type === 'answer') await pc.setRemoteDescription({ type:'answer', sdp:msg.sdp });
@@ -547,8 +627,9 @@ function openWS() {
   };
 
   ws.onerror = () => {
-    setStep('step-ws', 'error');
-    document.getElementById('conn-error').textContent = 'Erro ao conectar ao servidor.';
+    setStep('ws', 'error');
+    document.getElementById('conn-status-text').textContent = 'Erro ao conectar ao servidor.';
+    document.getElementById('conn-status-text').style.color = '#ef4444';
     document.getElementById('conn-btn').disabled = false;
   };
 
@@ -604,16 +685,20 @@ function setStatus(ok) {
     clearInterval(_pingInterval); _pingInterval = null;
     el.style.color = '#7a3030'; el.textContent = '\u25cf offline';
   } else {
-    el.style.color = '#2d6a3f'; el.textContent = '\u25cf --ms';
+    el.style.color = '#2d6a3f'; el.textContent = '\u25cf online';
     startPing();
   }
   if (ok) {
+    clearTimeout(_connTimeout); _connTimeout = null;
     setStep('step-rtc', 'done');
     document.getElementById('conn-btn').disabled = false;
     document.getElementById('connect-overlay').style.display = 'none';
   } else {
     resetSteps();
-    document.getElementById('conn-error').textContent = 'Conexão perdida.';
+    const icon = document.getElementById('conn-status-icon');
+    icon.className = 'material-icons'; icon.textContent = 'wifi_off'; icon.style.color = '#ef4444';
+    document.getElementById('conn-status-text').textContent = 'Conexão perdida.';
+    document.getElementById('conn-status-text').style.color = '#ef4444';
     document.getElementById('conn-btn').disabled = false;
     document.getElementById('connect-overlay').style.display = 'flex';
   }
@@ -656,13 +741,11 @@ makeStick('wasd-zone', 'wasd-knob', 55, (nx, ny) => {
 });
 
 // ── Mouse joystick ─────────────────────────────────────────────────────────
-const MOUSE_SPEED_NORMAL = 10;
-const MOUSE_SPEED_GTA    = 22;
 makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
-  const speed = mode === 'gta' ? MOUSE_SPEED_GTA : MOUSE_SPEED_NORMAL;
+  const speed = mode === 'gta' ? 20 : 10;
   const factor = Math.min(dist, 1);
-  _mouseVx = Math.round(nx * factor * speed);
-  _mouseVy = Math.round(ny * factor * speed);
+  _mouseVx = nx * factor * speed;
+  _mouseVy = ny * factor * speed;
 }, () => { _mouseVx = 0; _mouseVy = 0; }, true);
 
 // ── Scroll pad ─────────────────────────────────────────────────────────────
@@ -745,6 +828,40 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   }
   zone.addEventListener('pointerup',     release);
   zone.addEventListener('pointercancel', release);
+}
+
+// ── Toggle key (inventário / players) ────────────────────────────────────
+const _toggleKeys = {};
+function toggleKey(key, btnId) {
+  _toggleKeys[key] = !_toggleKeys[key];
+  const on = _toggleKeys[key];
+  send({ action: on ? 'keydown' : 'keyup', key });
+  const btn = document.getElementById(btnId);
+  btn.style.background = on ? '#0f2a4a' : '';
+  btn.style.color = on ? '#60a5fa' : '';
+}
+
+// ── Mouse hold (GTA) ──────────────────────────────────────────────────────
+const _mouseHold = { left: false, right: false };
+function toggleMouseHold(button, btnId) {
+  _mouseHold[button] = !_mouseHold[button];
+  const on = _mouseHold[button];
+  send({ action: on ? 'mousedown' : 'mouseup', button });
+  const btn = document.getElementById(btnId);
+  btn.style.background = on ? '#4a1a0f' : '';
+  btn.style.color = on ? '#fa9060' : '';
+}
+
+function onMouseBtnDown(button) {
+  if (_mouseHold[button]) {
+    // seg. ativo: desativa e não envia mousedown extra
+    toggleMouseHold(button, button === 'left' ? 'btn-hold-left' : 'btn-hold-right');
+  } else {
+    send({ action: 'mousedown', button });
+  }
+}
+function onMouseBtnUp(button) {
+  if (!_mouseHold[button]) send({ action: 'mouseup', button });
 }
 
 // ── Keyboard ───────────────────────────────────────────────────────────────

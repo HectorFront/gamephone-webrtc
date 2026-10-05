@@ -1,8 +1,20 @@
 const { parentPort } = require('worker_threads');
 const { mouse, keyboard, Key, Button, Point } = require('@nut-tree-fork/nut-js');
+const { spawn } = require('child_process');
+const path = require('path');
 
 mouse.config.mouseSpeed = 9999;
 keyboard.config.autoDelayMs = 0;
+
+// PowerShell persistente com SendInput relativo (Raw Input — lido pelo GTA)
+const _ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-File', path.join(__dirname, 'mouse-input.ps1')], { stdio: ['pipe','ignore','ignore'] });
+
+const _sendInputRelative = (dx, dy) => {
+  const x = Math.round(dx), y = Math.round(dy);
+  if (x === 0 && y === 0) return;
+  _ps.stdin.write(x + ',' + y + '\n');
+};
+console.log('[input-worker] SendInput relativo ativo (PowerShell persistente)');
 
 const KEY_MAP = {
   a:'A', b:'B', c:'C', d:'D', e:'E', f:'F', g:'G', h:'H', i:'I', j:'J',
@@ -19,24 +31,16 @@ const KEY_MAP = {
 
 function getKey(k) { return Key[KEY_MAP[k?.toLowerCase()] ?? k]; }
 
-let _mx = null, _my = null;
 let _screenW = 2560, _screenH = 1440;
-
-mouse.getPosition().then(p => { _mx = p.x; _my = p.y; }).catch(() => { _mx = 960; _my = 540; });
 
 parentPort.on('message', async (cmd) => {
   try {
     const { action } = cmd;
     if (action === 'init') { _screenW = cmd.w; _screenH = cmd.h; return; }
-    if (action === 'reset') { _mx = null; _my = null; return; }
+    if (action === 'reset') { return; }
 
     if (action === 'mousemove') {
-      const dx = Math.max(-200, Math.min(200, cmd.dx || 0));
-      const dy = Math.max(-200, Math.min(200, cmd.dy || 0));
-      if (_mx === null) { const p = await mouse.getPosition(); _mx = p.x; _my = p.y; }
-      _mx = Math.max(0, Math.min(_screenW - 1, _mx + dx));
-      _my = Math.max(0, Math.min(_screenH - 1, _my + dy));
-      await mouse.setPosition(new Point(Math.round(_mx), Math.round(_my)));
+      _sendInputRelative(cmd.dx || 0, cmd.dy || 0);
     }
     else if (action === 'scroll') {
       const dy = cmd.dy || 0, dx = cmd.dx || 0;

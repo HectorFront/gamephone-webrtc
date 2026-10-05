@@ -28,7 +28,7 @@
 </div>
 <script>
 const SIGNAL_URL = 'wss://game.mexpenses.com.br/ws';
-const VIEWER_ID  = 'viewer-1';
+const VIEWER_ID  = 'viewer-' + Math.random().toString(36).slice(2, 8);
 const STREAM_ID  = 'stream-agent';
 
 let pc = null, ws = null;
