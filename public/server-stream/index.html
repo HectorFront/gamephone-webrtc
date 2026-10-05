@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stream</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: contain; display: block; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<script>
+const WS_URL = 'wss://titled-career-pushing-pupils.trycloudflare.com';
+
+const video  = document.getElementById('video');
+const mime   = 'video/mp4; codecs="avc1.42E01E"';
+
+let ms = null, sb = null, ws = null;
+const queue  = [];
+let appending = false;
+
+function initMediaSource() {
+  ms = new MediaSource();
+  video.src = URL.createObjectURL(ms);
+
+  ms.addEventListener('sourceopen', () => {
+    sb = ms.addSourceBuffer(mime);
+    sb.mode = 'sequence';
+
+    sb.addEventListener('updateend', () => {
+      appending = false;
+      pump();
+    });
+
+    openWS();
+  }, { once: true });
+}
+
+function pump() {
+  if (appending || !sb || sb.updating || queue.length === 0) return;
+  appending = true;
+  sb.appendBuffer(queue.shift());
+}
+
+function openWS() {
+  ws = new WebSocket(WS_URL);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onmessage = (e) => {
+    queue.push(e.data);
+    pump();
+  };
+
+  ws.onclose = () => setTimeout(initMediaSource, 3000);
+  ws.onerror = () => ws.close();
+}
+
+initMediaSource();
+</script>
+</body>
+</html>
