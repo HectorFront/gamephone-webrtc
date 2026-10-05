@@ -1,4 +1,4 @@
-const nodedc = require('node-datachannel');
+const { RTCPeerConnection } = require('@roamhq/wrtc');
 const WebSocket = require('ws');
 const { Worker } = require('worker_threads');
 const path = require('path');
@@ -32,11 +32,10 @@ function drain() {
   setImmediate(() => { _busy = false; drain(); });
 }
 
-const _warmup = new nodedc.PeerConnection('warmup', { iceServers: [] });
-setTimeout(() => { try { _warmup.close(); } catch {} }, 2000);
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 const ws = new WebSocket(SIGNAL_URL);
-let peer = null;
+let pc = null;
 let controllerId = null;
 let _pendingIce = [];
 
@@ -45,7 +44,7 @@ ws.on('open', () => {
   console.log('[Signal] Registrado como', AGENT_ID);
 });
 
-ws.on('message', (raw) => {
+ws.on('message', async (raw) => {
   let msg;
   try { msg = JSON.parse(raw); } catch { return; }
   console.log('[Signal] msg:', msg.type, 'from:', msg.from);
@@ -55,63 +54,57 @@ ws.on('message', (raw) => {
     _queue.length = 0;
     _pendingIce = [];
     worker.postMessage({ action: 'reset' });
-    if (peer) { try { peer.close(); } catch {} peer = null; }
+    if (pc) { try { pc.close(); } catch {} pc = null; }
 
-    setTimeout(() => {
-      console.log('[WebRTC] Criando peer...');
-      peer = new nodedc.PeerConnection('agent-' + Date.now(), {
-        iceServers: ['stun:stun.l.google.com:19302'],
-      });
+    console.log('[WebRTC] Criando peer...');
+    pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
-      peer.onLocalDescription((sdp, type) => {
-        console.log('[WebRTC] Enviando', type);
-        ws.send(JSON.stringify({ type, to: controllerId, sdp }));
-      });
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate && ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: 'ice', to: controllerId, candidate }));
+    };
 
-      peer.onLocalCandidate((candidate, mid) => {
-        ws.send(JSON.stringify({ type: 'ice', to: controllerId, candidate, mid }));
-      });
+    pc.oniceconnectionstatechange = () => {
+      console.log('[ICE]', pc.iceConnectionState);
+    };
 
-      peer.onStateChange((state) => {
-        console.log('[WebRTC] State:', state);
-        if (state === 'failed' || state === 'closed') {
-          try { peer.close(); } catch {}
-          peer = null;
-        }
-      });
+    pc.onconnectionstatechange = () => {
+      console.log('[WebRTC] State:', pc.connectionState);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        try { pc.close(); } catch {}
+        pc = null;
+      }
+    };
 
-      peer.onDataChannel((dc) => {
-        console.log('[DataChannel] aberto:', dc.getLabel());
-        dc.onMessage((data) => {
-          try {
-            const cmd = JSON.parse(data);
-            if (cmd.action === 'ping') {
-              dc.sendMessage(JSON.stringify({ action: 'pong', t: cmd.t }));
-              return;
-            }
-            enqueue(cmd);
-          } catch(e) { console.error('[CMD]', e.message); }
-        });
-        dc.onClosed(() => console.log('[DataChannel] fechado'));
-        dc.onError((e) => console.log('[DataChannel] erro:', e));
-      });
+    pc.ondatachannel = ({ channel: dc }) => {
+      console.log('[DataChannel] aberto:', dc.label);
+      dc.onmessage = ({ data }) => {
+        try {
+          const cmd = JSON.parse(data);
+          if (cmd.action === 'ping') {
+            dc.send(JSON.stringify({ action: 'pong', t: cmd.t }));
+            return;
+          }
+          enqueue(cmd);
+        } catch(e) { console.error('[CMD]', e.message); }
+      };
+      dc.onclose = () => console.log('[DataChannel] fechado');
+      dc.onerror = (e) => console.log('[DataChannel] erro:', e);
+    };
 
-      peer.setRemoteDescription(msg.sdp, 'offer');
-      _pendingIce.forEach(ic => {
-        try { peer.addRemoteCandidate(ic.cand, ic.mid); } catch(e) { console.error('[ICE pending]', e.message); }
-      });
-      _pendingIce = [];
-    }, 100);
+    await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
+    _pendingIce.forEach(c => { try { pc.addIceCandidate(c); } catch {} });
+    _pendingIce = [];
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    ws.send(JSON.stringify({ type: 'answer', to: controllerId, sdp: answer.sdp }));
   }
 
   if (msg.type === 'ice') {
-    try {
-      const cand = typeof msg.candidate === 'object' && msg.candidate?.candidate
-        ? msg.candidate.candidate : msg.candidate;
-      const mid = msg.candidate?.sdpMid ?? msg.mid ?? '0';
-      if (peer) peer.addRemoteCandidate(cand, mid);
-      else _pendingIce.push({ cand, mid });
-    } catch(e) { console.error('[ICE]', e.message); }
+    const candidate = typeof msg.candidate === 'object' ? msg.candidate : { candidate: msg.candidate, sdpMid: msg.mid ?? '0' };
+    if (pc) { try { await pc.addIceCandidate(candidate); } catch(e) { console.error('[ICE]', e.message); } }
+    else _pendingIce.push(candidate);
   }
 });
 

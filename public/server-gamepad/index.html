@@ -745,7 +745,7 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
   const speed = mode === 'gta' ? 20 : 10;
   const factor = Math.min(dist, 1);
   _mouseVx = nx * factor * speed;
-  _mouseVy = ny * factor * speed;
+  _mouseVy = (mode === 'gta' ? -ny : ny) * factor * speed;
 }, () => { _mouseVx = 0; _mouseVy = 0; }, true);
 
 // ── Scroll pad ─────────────────────────────────────────────────────────────
