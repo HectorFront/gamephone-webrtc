@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
 <style>
   * { -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; box-sizing: border-box; }
-  body { background: #000; overflow-x: hidden; overflow-y: auto; width: 100vw; min-height: 100vh; }
+  body { background: #000; overflow-x: hidden; overflow-y: auto; width: 100vw; height: 100vh; }
   body::-webkit-scrollbar { display: none; }
   body { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -127,6 +127,16 @@
   .mouse-btn svg { width: clamp(30px, 8vw, 44px); height: auto; }
   .mouse-btn:active { filter: brightness(2); transform: scale(.92); }
 
+  /* Pedais corrida */
+  #race-right { align-items: center; justify-content: flex-end; gap: clamp(16px, 6vw, 56px); padding-right: clamp(16px, 5vw, 48px); }
+  .pedal {
+    width: auto; height: clamp(60px, 55vh, 220px);
+    cursor: pointer; transition: filter .08s, transform .06s, opacity .06s;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    display: block; pointer-events: auto;
+  }
+  .pedal.pressed { filter: brightness(1.9); transform: scale(.9); opacity: .9; }
+
   /* Center column */
   #center-col { width: clamp(100px, 20vw, 160px); }
 
@@ -152,6 +162,38 @@
 
   #ping-status { font-size: .7rem; font-variant-numeric: tabular-nums; min-width: 100px; display: inline-block; text-align: right; }
   .material-icons { font-size: inherit; vertical-align: middle; }
+
+  #fullscreen-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.85); flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+  }
+  #fullscreen-overlay button {
+    padding: 14px 32px; border-radius: 14px; font-size: 1rem; font-weight: bold;
+    background: #166534; color: #fff; border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #fullscreen-overlay button:active { background: #14532d; }
+
+  #sens-overlay {
+    position: fixed; inset: 0; z-index: 150; background: rgba(0,0,0,.95);
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+  }
+  #sens-overlay.open { display: flex; }
+  #sens-slider {
+    -webkit-appearance: none; appearance: none;
+    width: min(320px, 80vw); height: 6px; border-radius: 3px;
+    background: #333; outline: none;
+  }
+  #sens-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #60a5fa; cursor: pointer;
+  }
+  #sens-slider::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #60a5fa; cursor: pointer; border: none;
+  }
 </style>
 </head>
 <body class="text-white">
@@ -160,6 +202,30 @@
 <div id="rotate-msg">
   <span class="material-icons" style="font-size:3rem">screen_rotation</span>
   <span>Gire o celular para paisagem</span>
+</div>
+
+<!-- SENSITIVITY OVERLAY -->
+<div id="sens-overlay">
+  <span class="material-icons" style="font-size:2rem;color:#60a5fa">settings</span>
+  <span style="font-weight:bold;font-size:1rem">Sensibilidade do Mouse</span>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%">
+    <input type="range" id="sens-slider" min="0" max="500" value="0"/>
+    <span id="sens-label" style="font-size:.85rem;color:#60a5fa">+0</span>
+  </div>
+  <button id="btn-sens-close"
+    style="padding:10px 28px;border-radius:12px;background:#1e1e1e;color:#aaa;border:1px solid #333;font-size:.9rem;cursor:pointer">
+    Fechar
+  </button>
+</div>
+
+<!-- FULLSCREEN OVERLAY -->
+<div id="fullscreen-overlay">
+  <span class="material-icons" style="font-size:3rem;color:#60a5fa">fullscreen</span>
+  <span style="color:#aaa">Tela cheia desativada</span>
+  <button onclick="document.documentElement.requestFullscreen()">
+    <span class="material-icons" style="font-size:1.1rem">fullscreen</span>
+    Voltar para tela cheia
+  </button>
 </div>
 
 <!-- CONNECT OVERLAY -->
@@ -186,80 +252,80 @@
 <div id="kb-overlay">
   <div class="flex justify-between w-full px-6 mb-2">
     <span class="text-gray-400 text-sm">Teclado</span>
-    <button onclick="toggleKb()" class="text-gray-400" style="font-size:1.25rem"><span class="material-icons">close</span></button>
+    <button id="btn-kb-close" class="text-gray-400" style="font-size:1.25rem"><span class="material-icons">close</span></button>
   </div>
   <div class="kb-row">
-    <div class="kb-key" onclick="kbTap('escape')">ESC</div>
-    <div class="kb-key" onclick="kbTap('f1')">F1</div>
-    <div class="kb-key" onclick="kbTap('f2')">F2</div>
-    <div class="kb-key" onclick="kbTap('f3')">F3</div>
-    <div class="kb-key" onclick="kbTap('f4')">F4</div>
-    <div class="kb-key" onclick="kbTap('f5')">F5</div>
-    <div class="kb-key" onclick="kbTap('f6')">F6</div>
-    <div class="kb-key" onclick="kbTap('f7')">F7</div>
-    <div class="kb-key" onclick="kbTap('f8')">F8</div>
-    <div class="kb-key" onclick="kbTap('f9')">F9</div>
-    <div class="kb-key" onclick="kbTap('f10')">F10</div>
-    <div class="kb-key" onclick="kbTap('f11')">F11</div>
-    <div class="kb-key" onclick="kbTap('f12')">F12</div>
+    <div class="kb-key" data-kb="escape">ESC</div>
+    <div class="kb-key" data-kb="f1">F1</div>
+    <div class="kb-key" data-kb="f2">F2</div>
+    <div class="kb-key" data-kb="f3">F3</div>
+    <div class="kb-key" data-kb="f4">F4</div>
+    <div class="kb-key" data-kb="f5">F5</div>
+    <div class="kb-key" data-kb="f6">F6</div>
+    <div class="kb-key" data-kb="f7">F7</div>
+    <div class="kb-key" data-kb="f8">F8</div>
+    <div class="kb-key" data-kb="f9">F9</div>
+    <div class="kb-key" data-kb="f10">F10</div>
+    <div class="kb-key" data-kb="f11">F11</div>
+    <div class="kb-key" data-kb="f12">F12</div>
   </div>
   <div class="kb-row">
-    <div class="kb-key" onclick="kbTap('1')">1</div>
-    <div class="kb-key" onclick="kbTap('2')">2</div>
-    <div class="kb-key" onclick="kbTap('3')">3</div>
-    <div class="kb-key" onclick="kbTap('4')">4</div>
-    <div class="kb-key" onclick="kbTap('5')">5</div>
-    <div class="kb-key" onclick="kbTap('6')">6</div>
-    <div class="kb-key" onclick="kbTap('7')">7</div>
-    <div class="kb-key" onclick="kbTap('8')">8</div>
-    <div class="kb-key" onclick="kbTap('9')">9</div>
-    <div class="kb-key" onclick="kbTap('0')">0</div>
-    <div class="kb-key wide" onclick="kbTap('backspace')"><span class="material-icons" style="font-size:.8rem">backspace</span></div>
+    <div class="kb-key" data-kb="1">1</div>
+    <div class="kb-key" data-kb="2">2</div>
+    <div class="kb-key" data-kb="3">3</div>
+    <div class="kb-key" data-kb="4">4</div>
+    <div class="kb-key" data-kb="5">5</div>
+    <div class="kb-key" data-kb="6">6</div>
+    <div class="kb-key" data-kb="7">7</div>
+    <div class="kb-key" data-kb="8">8</div>
+    <div class="kb-key" data-kb="9">9</div>
+    <div class="kb-key" data-kb="0">0</div>
+    <div class="kb-key wide" data-kb="backspace"><span class="material-icons" style="font-size:.8rem">backspace</span></div>
   </div>
   <div class="kb-row">
-    <div class="kb-key wide" onclick="kbTap('tab')">TAB</div>
-    <div class="kb-key" onclick="kbTap('q')">Q</div>
-    <div class="kb-key" onclick="kbTap('w')">W</div>
-    <div class="kb-key" onclick="kbTap('e')">E</div>
-    <div class="kb-key" onclick="kbTap('r')">R</div>
-    <div class="kb-key" onclick="kbTap('t')">T</div>
-    <div class="kb-key" onclick="kbTap('y')">Y</div>
-    <div class="kb-key" onclick="kbTap('u')">U</div>
-    <div class="kb-key" onclick="kbTap('i')">I</div>
-    <div class="kb-key" onclick="kbTap('o')">O</div>
-    <div class="kb-key" onclick="kbTap('p')">P</div>
+    <div class="kb-key wide" data-kb="tab">TAB</div>
+    <div class="kb-key" data-kb="q">Q</div>
+    <div class="kb-key" data-kb="w">W</div>
+    <div class="kb-key" data-kb="e">E</div>
+    <div class="kb-key" data-kb="r">R</div>
+    <div class="kb-key" data-kb="t">T</div>
+    <div class="kb-key" data-kb="y">Y</div>
+    <div class="kb-key" data-kb="u">U</div>
+    <div class="kb-key" data-kb="i">I</div>
+    <div class="kb-key" data-kb="o">O</div>
+    <div class="kb-key" data-kb="p">P</div>
   </div>
   <div class="kb-row">
-    <div class="kb-key wide" onclick="kbTap('caps_lock')">CAPS</div>
-    <div class="kb-key" onclick="kbTap('a')">A</div>
-    <div class="kb-key" onclick="kbTap('s')">S</div>
-    <div class="kb-key" onclick="kbTap('d')">D</div>
-    <div class="kb-key" onclick="kbTap('f')">F</div>
-    <div class="kb-key" onclick="kbTap('g')">G</div>
-    <div class="kb-key" onclick="kbTap('h')">H</div>
-    <div class="kb-key" onclick="kbTap('j')">J</div>
-    <div class="kb-key" onclick="kbTap('k')">K</div>
-    <div class="kb-key" onclick="kbTap('l')">L</div>
-    <div class="kb-key wider" onclick="kbTap('return')">ENTER ↵</div>
+    <div class="kb-key wide" data-kb="caps_lock">CAPS</div>
+    <div class="kb-key" data-kb="a">A</div>
+    <div class="kb-key" data-kb="s">S</div>
+    <div class="kb-key" data-kb="d">D</div>
+    <div class="kb-key" data-kb="f">F</div>
+    <div class="kb-key" data-kb="g">G</div>
+    <div class="kb-key" data-kb="h">H</div>
+    <div class="kb-key" data-kb="j">J</div>
+    <div class="kb-key" data-kb="k">K</div>
+    <div class="kb-key" data-kb="l">L</div>
+    <div class="kb-key wider" data-kb="return">ENTER ↵</div>
   </div>
   <div class="kb-row">
-    <div class="kb-key wider" onclick="kbToggleShift()"><span class="material-icons" style="font-size:.8rem">shift</span> SHIFT</div>
-    <div class="kb-key" onclick="kbTap('z')">Z</div>
-    <div class="kb-key" onclick="kbTap('x')">X</div>
-    <div class="kb-key" onclick="kbTap('c')">C</div>
-    <div class="kb-key" onclick="kbTap('v')">V</div>
-    <div class="kb-key" onclick="kbTap('b')">B</div>
-    <div class="kb-key" onclick="kbTap('n')">N</div>
-    <div class="kb-key" onclick="kbTap('m')">M</div>
-    <div class="kb-key" onclick="kbTap('up')"><span class="material-icons" style="font-size:.8rem">arrow_upward</span></div>
+    <div class="kb-key wider" id="kb-shift"><span class="material-icons" style="font-size:.8rem">shift</span> SHIFT</div>
+    <div class="kb-key" data-kb="z">Z</div>
+    <div class="kb-key" data-kb="x">X</div>
+    <div class="kb-key" data-kb="c">C</div>
+    <div class="kb-key" data-kb="v">V</div>
+    <div class="kb-key" data-kb="b">B</div>
+    <div class="kb-key" data-kb="n">N</div>
+    <div class="kb-key" data-kb="m">M</div>
+    <div class="kb-key" data-kb="up"><span class="material-icons" style="font-size:.8rem">arrow_upward</span></div>
   </div>
   <div class="kb-row">
-    <div class="kb-key wide" onclick="kbTap('ctrl')">CTRL</div>
-    <div class="kb-key wide" onclick="kbTap('alt')">ALT</div>
-    <div class="kb-key space" onclick="kbTap('space')">ESPAÇO</div>
-    <div class="kb-key" onclick="kbTap('left')"><span class="material-icons" style="font-size:.8rem">arrow_back</span></div>
-    <div class="kb-key" onclick="kbTap('down')"><span class="material-icons" style="font-size:.8rem">arrow_downward</span></div>
-    <div class="kb-key" onclick="kbTap('right')"><span class="material-icons" style="font-size:.8rem">arrow_forward</span></div>
+    <div class="kb-key wide" data-kb="ctrl">CTRL</div>
+    <div class="kb-key wide" data-kb="alt">ALT</div>
+    <div class="kb-key space" data-kb="space">ESPAÇO</div>
+    <div class="kb-key" data-kb="left"><span class="material-icons" style="font-size:.8rem">arrow_back</span></div>
+    <div class="kb-key" data-kb="down"><span class="material-icons" style="font-size:.8rem">arrow_downward</span></div>
+    <div class="kb-key" data-kb="right"><span class="material-icons" style="font-size:.8rem">arrow_forward</span></div>
   </div>
 </div>
 
@@ -271,39 +337,50 @@
     <!-- ESC (game) / Teclado (pc) -->
     <div style="flex:1;display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden">
       <div id="top-left-game">
-        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
+        <button class="shoulder text-xs" id="btn-esc-game">ESC</button>
       </div>
       <div id="top-left-gta" class="hidden gap-1">
-        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
-        <button class="shoulder" style="font-size:.6rem;white-space:nowrap" onpointerdown="send({action:'keypress',key:'z'})">Players/Mapa (Z)</button>
+        <button class="shoulder text-xs" id="btn-esc-gta">ESC</button>
+        <button class="shoulder" id="btn-players-gta" style="font-size:.6rem;white-space:nowrap">Players/Mapa (Z)</button>
       </div>
       <div id="top-left-pc" class="hidden">
-        <button class="shoulder text-xs" onclick="toggleKb()"><span class="material-icons" style="font-size:.9rem">keyboard</span> Teclado</button>
+        <button class="shoulder text-xs" id="btn-kb-toggle"><span class="material-icons" style="font-size:.9rem">keyboard</span> Teclado</button>
+      </div>
+      <div id="top-left-race" class="hidden">
+        <button class="shoulder text-xs" id="btn-esc-race">ESC</button>
       </div>
     </div>
 
     <div class="flex gap-2" style="flex-shrink:0">
-      <button onclick="setMode('game')" id="btn-mode-game"
+      <button id="btn-mode-game"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0f2a4a;color:#60a5fa">Game (Genérico)</button>
-      <button onclick="setMode('gta')" id="btn-mode-gta"
+      <button id="btn-mode-gta"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0d0d0d;color:#444">GTA</button>
-      <button onclick="setMode('pc')" id="btn-mode-pc"
+      <button id="btn-mode-race"
+        class="text-xs px-3 py-1 rounded-full"
+        style="background:#0d0d0d;color:#444">Corrida</button>
+      <button id="btn-mode-pc"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0d0d0d;color:#444">PC (Desktop)</button>
+      <button id="btn-mode-sens"
+        class="text-xs px-2 py-1 rounded-full"
+        style="background:#0d0d0d;color:#444;display:flex;align-items:center;gap:3px">
+        <span class="material-icons" style="font-size:.9rem">settings</span>
+      </button>
     </div>
 
     <div class="flex items-center gap-2" style="flex:1;justify-content:flex-end;min-width:0">
       <span id="ping-status" style="color:#7a3030;white-space:nowrap;min-width:70px;text-align:right">● offline</span>
       <span style="font-size:.6rem;color:#2d6a3f;white-space:nowrap">Feito para Duquesa 💚</span>
-      <button onclick="document.getElementById('connect-overlay').style.display='flex'"
+      <button id="btn-logout"
         class="text-gray-600 rounded px-1" style="background:none;font-size:1.1rem;flex-shrink:0"><span class="material-icons">logout</span></button>
     </div>
   </div>
 
   <!-- CONTROLS AREA -->
-  <div class="flex-1 flex items-stretch px-2 py-2 gap-2" style="min-height:0">
+  <div class="flex-1 flex items-center px-2 py-2 gap-2" style="min-height:0">
 
     <!-- ═══ LEFT SIDE ═══ -->
     <div class="flex flex-col items-center justify-between flex-1">
@@ -323,27 +400,33 @@
         <div class="stick-zone" id="wasd-zone" style="width:110px;height:110px">
           <div class="stick-knob" id="wasd-knob" style="width:44px;height:44px"></div>
         </div>
+        <!-- Shift / Ctrl — modo game -->
+        <div id="game-mod-btns" class="hidden flex gap-2">
+          <button class="shoulder text-xs" id="btn-shift-game">⇧ Shift</button>
+          <button class="shoulder text-xs" id="btn-ctrl-game">Ctrl</button>
+          <button class="shoulder" id="btn-game-e" style="font-size:.9rem;padding:6px 14px">E</button>
+        </div>
         <div class="flex items-center gap-2">
           <div id="gta-run-btns" class="hidden flex-col items-center gap-1">
             <div class="flex items-center gap-2">
-              <button class="shoulder" id="btn-run" style="font-size:.75rem;padding:6px 10px" onclick="toggleKey('shift','btn-run')">
+              <button class="shoulder" id="btn-run" style="font-size:.75rem;padding:6px 10px">
                 <span class="material-icons" style="font-size:.8rem">directions_run</span> Correr
               </button>
-              <button class="shoulder" style="font-size:.9rem;padding:6px 14px" onpointerdown="send({action:'keypress',key:'e'})">E</button>
+              <button class="shoulder" id="btn-gta-e" style="font-size:.9rem;padding:6px 14px">E</button>
             </div>
-            <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'h'})">Farol do veículo</button>
+            <button class="shoulder text-xs" id="btn-gta-h" style="width:100%;text-align:center">Farol do veículo</button>
           </div>
         </div>
       </div>
 
       <!-- PC MODE LEFT: teclado toggle -->
       <div id="pc-left" class="hidden flex-col items-center justify-center h-full gap-3">
-        <button onclick="toggleKb()"
+        <button id="btn-kb-toggle-big"
           class="flex flex-col items-center gap-2 border border-gray-700 rounded-2xl px-6 py-4 bg-gray-950">
           <span class="material-icons" style="font-size:2rem">keyboard</span>
           <span class="text-xs text-gray-400">Teclado</span>
         </button>
-        <button class="shoulder text-xs" onclick="send({action:'keypress',key:'escape'})">ESC</button>
+        <button class="shoulder text-xs" id="btn-esc-pc">ESC</button>
       </div>
 
     </div>
@@ -364,51 +447,56 @@
       <!-- PC center: teclas extras -->
       <div id="pc-center" class="hidden flex-col items-center gap-2 justify-center mt-3">
         <div class="flex flex-col gap-2">
-          <button class="shoulder text-xs" onclick="send({action:'keypress',key:'tab'})">TAB</button>
-          <button class="shoulder text-xs" onclick="send({action:'keypress',key:'return'})">ENTER</button>
-          <button class="shoulder" style="font-size:.9rem" onclick="send({action:'keypress',key:'backspace'})"><span class="material-icons" style="font-size:.9rem">backspace</span></button>
+          <button class="shoulder text-xs" id="btn-pc-tab">TAB</button>
+          <button class="shoulder text-xs" id="btn-pc-enter">ENTER</button>
+          <button class="shoulder" id="btn-pc-backspace" style="font-size:.9rem"><span class="material-icons" style="font-size:.9rem">backspace</span></button>
         </div>
       </div>
 
       <!-- SPACE (modo game) -->
-      <div id="game-space" class="mt-3">
+      <div id="game-space" class="flex flex-col items-center gap-1 mt-3" style="width:100%">
+        <div class="flex gap-1" style="width:100%">
+          <button class="shoulder" id="btn-game-f" style="flex:1;text-align:center;font-size:.9rem">F</button>
+          <button class="shoulder" id="btn-game-r" style="flex:1;text-align:center;font-size:.9rem">R</button>
+        </div>
         <button id="btn-space"
-          class="ctrl-btn w-full py-3 rounded-xl text-sm font-bold"
-          style="background:#1e1e1e;border-radius:14px;color:#999;min-width:100px;border:1px solid #333"
-          onpointerdown="send({action:'keydown',key:'space'})"
-          onpointerup="send({action:'keyup',key:'space'})">
+          class="ctrl-btn py-3 rounded-xl font-bold"
+          style="width:100%;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333;font-size:.95rem">
           SPACE
         </button>
+        <button class="shoulder text-xs" id="btn-game-tab" style="width:100%;text-align:center">TAB</button>
       </div>
 
       <!-- GTA extra buttons -->
       <div id="gta-space" class="hidden flex-col items-center gap-1 mt-3" style="width:100%">
         <div class="flex gap-1" style="width:100%">
-          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'f'})">Entrar F</button>
-          <button class="shoulder text-xs" style="flex:1;text-align:center" onpointerdown="send({action:'keypress',key:'g'})">Bomba G</button>
+          <button class="shoulder text-xs" id="btn-gta-f" style="flex:1;text-align:center">Entrar F</button>
+          <button class="shoulder text-xs" id="btn-gta-g" style="flex:1;text-align:center">Bomba G</button>
         </div>
-        <button
+        <button id="btn-gta-space"
           class="ctrl-btn py-3 rounded-xl font-bold"
-          style="width:100%;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333;font-size:.95rem"
-          onpointerdown="send({action:'keydown',key:'space'})"
-          onpointerup="send({action:'keyup',key:'space'})">
+          style="width:100%;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333;font-size:.95rem">
           Pular
         </button>
-        <button class="shoulder text-xs" id="btn-inv" style="width:100%;text-align:center" onclick="toggleKey('tab','btn-inv')">Inventário TAB</button>
-        <button class="shoulder text-xs" style="width:100%;text-align:center" onpointerdown="send({action:'keypress',key:'return'})">Enter</button>
+        <button class="shoulder text-xs" id="btn-inv" style="width:100%;text-align:center">Inventário TAB</button>
+        <button class="shoulder text-xs" id="btn-gta-enter" style="width:100%;text-align:center">Enter</button>
       </div>
 
     </div>
 
+    <!-- ═══ RACE RIGHT: pedais ═══ -->
+    <div id="race-right" class="hidden flex-row flex-1 py-1">
+      <img id="pedal-accel" src="/gamepad/icons/accelerator.svg" alt="Acelerador" class="pedal" draggable="false" oncontextmenu="return false"/>
+      <img id="pedal-brake" src="/gamepad/icons/brake.svg" alt="Freio" class="pedal" draggable="false" oncontextmenu="return false"/>
+    </div>
+
     <!-- ═══ RIGHT SIDE ═══ -->
-    <div class="flex flex-col items-center justify-between flex-1">
+    <div id="default-right" class="flex flex-col items-center justify-between flex-1">
 
       <!-- Mouse buttons (LMB / RMB) — ambos os modos -->
       <div class="flex gap-4 justify-center w-full pt-1" style="align-items:center">
-        <button id="btn-hold-left" class="hidden shoulder text-xs" style="padding:8px 4px" onclick="toggleMouseHold('left','btn-hold-left')">Seg.</button>
-        <button class="mouse-btn" id="lmb-btn"
-          onpointerdown="onMouseBtnDown('left')"
-          onpointerup="onMouseBtnUp('left')">
+        <button id="btn-hold-left" class="hidden shoulder text-xs" style="padding:8px 4px">Seg.</button>
+        <button class="mouse-btn" id="lmb-btn">
           <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="42" height="54" rx="12" fill="#1e1e1e" stroke="#333"/>
             <path d="M1 13C1 6.373 6.373 1 13 1H22V28H1V13Z" fill="#1a5c30"/>
@@ -417,9 +505,7 @@
             <circle cx="22" cy="38" r="4" fill="#333"/>
           </svg>
         </button>
-        <button class="mouse-btn" id="rmb-btn"
-          onpointerdown="onMouseBtnDown('right')"
-          onpointerup="onMouseBtnUp('right')">
+        <button class="mouse-btn" id="rmb-btn">
           <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="1" y="1" width="42" height="54" rx="12" fill="#1e1e1e" stroke="#333"/>
             <path d="M22 1H31C37.627 1 43 6.373 43 13V28H22V1Z" fill="#5c1a1a"/>
@@ -428,7 +514,7 @@
             <circle cx="22" cy="38" r="4" fill="#333"/>
           </svg>
         </button>
-        <button id="btn-hold-right" class="hidden shoulder text-xs" style="padding:8px 4px" onclick="toggleMouseHold('right','btn-hold-right')">Seg.</button>
+        <button id="btn-hold-right" class="hidden shoulder text-xs" style="padding:8px 4px">Seg.</button>
       </div>
 
       <!-- Mouse joystick -->
@@ -439,21 +525,17 @@
         <span class="text-xs text-gray-600">Mouse</span>
         <!-- Setas -->
         <div class="flex flex-col items-center gap-1">
-          <div class="wasd-key" style="width:36px;height:36px"
-            onpointerdown="this.classList.add('active');send({action:'keydown',key:'up'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'up'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'up'})">
+          <div class="wasd-key" id="arr-up" style="width:36px;height:36px">
             <span class="material-icons" style="font-size:.9rem">arrow_upward</span>
           </div>
           <div class="flex gap-1">
-            <div class="wasd-key" style="width:36px;height:36px"
-              onpointerdown="this.classList.add('active');send({action:'keydown',key:'left'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'left'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'left'})">
+            <div class="wasd-key" id="arr-left" style="width:36px;height:36px">
               <span class="material-icons" style="font-size:.9rem">arrow_back</span>
             </div>
-            <div class="wasd-key" style="width:36px;height:36px"
-              onpointerdown="this.classList.add('active');send({action:'keydown',key:'down'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'down'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'down'})">
+            <div class="wasd-key" id="arr-down" style="width:36px;height:36px">
               <span class="material-icons" style="font-size:.9rem">arrow_downward</span>
             </div>
-            <div class="wasd-key" style="width:36px;height:36px"
-              onpointerdown="this.classList.add('active');send({action:'keydown',key:'right'})" onpointerup="this.classList.remove('active');send({action:'keyup',key:'right'})" onpointercancel="this.classList.remove('active');send({action:'keyup',key:'right'})">
+            <div class="wasd-key" id="arr-right" style="width:36px;height:36px">
               <span class="material-icons" style="font-size:.9rem">arrow_forward</span>
             </div>
           </div>
@@ -466,9 +548,33 @@
 </div>
 
 <script>
+/**
+ * server-gamepad/index.html — Mobile gamepad controller
+ *
+ * Connects to the signaling server as 'controller-1', establishes a WebRTC
+ * DataChannel to the Windows agent, and sends input commands in real time.
+ *
+ * Modes:
+ *   game  — Generic game layout (WASD + mouse joystick)
+ *   gta   — GTA V layout (extra action buttons)
+ *   pc    — Desktop layout (keyboard overlay + mouse)
+ *
+ * Input commands sent over the DataChannel:
+ *   { action: 'mousemove',  dx, dy }          — relative mouse delta
+ *   { action: 'mousedown',  button }           — press mouse button
+ *   { action: 'mouseup',    button }           — release mouse button
+ *   { action: 'click',      button }           — single click
+ *   { action: 'scroll',     dx, dy }           — scroll wheel
+ *   { action: 'keydown',    key }              — press key
+ *   { action: 'keyup',      key }              — release key
+ *   { action: 'keypress',   key, modifiers }   — tap key
+ *   { action: 'ping',       t }                — RTT measurement
+ */
+
 try { screen.orientation.lock('landscape').catch(()=>{}); } catch {}
 
-// ── Responsividade ───────────────────────────────────────────────────
+// ── Responsive layout ────────────────────────────────────────────────
+/** Scales joystick zones proportionally to the viewport height. */
 function applyResponsive() {
   const h = window.innerHeight;
   const stickSize  = Math.min(Math.round(h * 0.38), 140);
@@ -489,18 +595,28 @@ function applyResponsive() {
 applyResponsive();
 window.addEventListener('resize', applyResponsive);
 
-// ── State ──────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────
 let mode = 'game', dc = null, pc = null, ws = null;
 const CONTROLLER_ID = 'controller-1', AGENT_ID = 'agent-windows';
 
 // ── Send ───────────────────────────────────────────────────────────────────
+/**
+ * Sends a JSON command over the WebRTC DataChannel.
+ * Drops the message if the channel is not open or the send buffer is full.
+ *
+ * @param {object} cmd - Input command object.
+ */
 function send(cmd) {
   if (!dc || dc.readyState !== 'open') return;
   if (dc.bufferedAmount > 4096) return;
   dc.send(JSON.stringify(cmd));
 }
 
-// ── Tick único para joysticks (50ms) ─────────────────────────────────────
+// ── Sensitivity ──────────────────────────────────────────────────────────
+let _sensBonus = 0; // 0–100 extra multiplier added on top of mode speed
+
+// ── Mouse joystick tick ───────────────────────────────────────────────────
+// Sends accumulated mouse velocity at ~60 fps to smooth out movement.
 let _mouseVx = 0, _mouseVy = 0;
 setInterval(() => {
   if (_mouseVx !== 0 || _mouseVy !== 0) {
@@ -508,28 +624,54 @@ setInterval(() => {
   }
 }, 16);
 
-// ── Mode ───────────────────────────────────────────────────────────────────
+// ── Mode ──────────────────────────────────────────────────────────────────
+/**
+ * Switches the UI layout between 'game', 'gta', and 'pc' modes.
+ * Shows/hides the relevant control groups and resets any held mouse buttons.
+ *
+ * @param {'game'|'gta'|'pc'} m - Target mode.
+ */
 function setMode(m) {
   mode = m;
   document.getElementById('btn-mode-game').style.cssText = m==='game'
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
   document.getElementById('btn-mode-gta').style.cssText = m==='gta'
     ? 'background:#4a1a0f;color:#fa9060' : 'background:#0d0d0d;color:#444';
+  document.getElementById('btn-mode-race').style.cssText = m==='race'
+    ? 'background:#1a2e0a;color:#4ade80' : 'background:#0d0d0d;color:#444';
   document.getElementById('btn-mode-pc').style.cssText = m==='pc'
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
 
-  show('game-left',     m==='game' || m==='gta');
+  const isRace = m === 'race';
+  show('game-left',     m==='game' || m==='gta' || isRace);
   show('pc-left',       m==='pc');
   show('pc-center',     m==='pc');
   show('game-space',    m==='game');
   show('gta-space',     m==='gta');
   show('top-left-game', m==='game');
   show('top-left-gta',  m==='gta');
+  show('top-left-race', isRace);
   show('top-left-pc',   m==='pc');
-  document.getElementById('btn-hold-left').classList.toggle('hidden',  m !== 'gta');
-  document.getElementById('btn-hold-right').classList.toggle('hidden', m !== 'gta');
+  document.getElementById('btn-hold-left').classList.toggle('hidden',  m !== 'gta' && m !== 'game');
+  document.getElementById('btn-hold-right').classList.toggle('hidden', m !== 'gta' && m !== 'game');
+  document.getElementById('game-mod-btns').classList.toggle('hidden', m !== 'game');
+  document.getElementById('game-mod-btns').classList.toggle('flex',   m === 'game');
   document.getElementById('gta-run-btns').classList.toggle('hidden', m !== 'gta');
   document.getElementById('gta-run-btns').classList.toggle('flex',   m === 'gta');
+  // tamanho do joystick WASD: maior no modo corrida
+  const wz = document.getElementById('wasd-zone');
+  const wk = document.getElementById('wasd-knob');
+  if (isRace) {
+    wz.style.width = wz.style.height = '180px';
+    wk.style.width = wk.style.height = '72px';
+  } else {
+    applyResponsive();
+  }
+  // mostrar/ocultar coluna central e lado direito padrão vs pedais
+  document.getElementById('center-col').classList.toggle('hidden', isRace);
+  document.getElementById('default-right').classList.toggle('hidden', isRace);
+  document.getElementById('race-right').classList.toggle('hidden', !isRace);
+  document.getElementById('race-right').classList.toggle('flex', isRace);
   if (m !== 'gta') {
     if (_mouseHold.left)  toggleMouseHold('left',  'btn-hold-left');
     if (_mouseHold.right) toggleMouseHold('right', 'btn-hold-right');
@@ -541,7 +683,8 @@ function show(id, visible) {
   el.classList.toggle('flex',    visible);
 }
 
-// ── Connect steps ─────────────────────────────────────────────────────────
+// ── Connection status UI ─────────────────────────────────────────────────
+/** Step metadata: icon name, label text, active colour. */
 const _stepInfo = {
   ws:   ['sync', 'Conectando ao servidor...', '#60a5fa'],
   reg:  ['how_to_reg', 'Registrando controle...',   '#60a5fa'],
@@ -580,10 +723,18 @@ function setConnStatus(msg, color) {
   document.getElementById('conn-status-text').style.color = color || '#555';
 }
 
-// ── Connect ────────────────────────────────────────────────────────────────
+// ── Connect ───────────────────────────────────────────────────────────────
 let _wsUrl = 'wss://game.mexpenses.com.br/ws';
-let _connTimeout = null;
+let _connTimeout = null; // guards against hanging connection attempts
 
+/**
+ * Initiates the full connection sequence:
+ *   1. Request fullscreen.
+ *   2. Open WebSocket to the signaling server.
+ *   3. Register as controller → wait for peer-ready → start WebRTC.
+ *
+ * A 15 s timeout aborts the attempt if no connection is established.
+ */
 async function connect() {
   try { await document.documentElement.requestFullscreen(); } catch {}
   _wsUrl = document.getElementById('signal-url').value.trim();
@@ -601,6 +752,10 @@ async function connect() {
   openWS();
 }
 
+/**
+ * Opens (or replaces) the WebSocket connection to the signaling server.
+ * Handles registration, peer-ready notification, and SDP/ICE relay.
+ */
 function openWS() {
   if (ws) { ws.onclose = null; ws.onerror = null; ws.close(); }
   ws = new WebSocket(_wsUrl);
@@ -638,9 +793,14 @@ function openWS() {
   };
 }
 
+/**
+ * Creates a new RTCPeerConnection with an unreliable, unordered DataChannel
+ * optimised for low-latency input (no retransmits).
+ * Sends an SDP offer to the Windows agent via the signaling server.
+ */
 async function startPeer() {
   if (pc) {
-    // desliga handlers do dc antigo antes de fechar
+    // Detach handlers from the old DataChannel before closing.
     if (dc) { dc.onopen = null; dc.onclose = null; }
     try { pc.close(); } catch {}
   }
@@ -669,7 +829,10 @@ async function startPeer() {
   ws.send(JSON.stringify({ type:'offer', to:AGENT_ID, sdp:offer.sdp }));
 }
 
+// ── Ping / RTT measurement ────────────────────────────────────────────────
 let _pingInterval = null;
+
+/** Starts sending ping commands every 2 s to measure round-trip latency. */
 function startPing() {
   clearInterval(_pingInterval);
   _pingInterval = setInterval(() => {
@@ -679,6 +842,11 @@ function startPing() {
   }, 2000);
 }
 
+/**
+ * Updates the online/offline indicator and manages the connect overlay.
+ *
+ * @param {boolean} ok - true when the DataChannel is open and ready.
+ */
 function setStatus(ok) {
   const el = document.getElementById('ping-status');
   if (!ok) {
@@ -704,7 +872,8 @@ function setStatus(ok) {
   }
 }
 
-// ── WASD toggle keys ───────────────────────────────────────────────────────
+// ── WASD toggle keys ──────────────────────────────────────────────────────
+// Each WASD key can be toggled (tap to hold) independently of the joystick.
 const toggleState = { w:false, a:false, s:false, d:false };
 const stickState  = { w:false, a:false, s:false, d:false };
 
@@ -718,10 +887,13 @@ document.querySelectorAll('.wasd-key').forEach(el => {
   });
 });
 
-// ── WASD joystick ──────────────────────────────────────────────────────────
+// ── WASD joystick ─────────────────────────────────────────────────────────
+// Translates normalised joystick position into keydown/keyup events.
+// Toggle-held keys are not overridden by the joystick.
 makeStick('wasd-zone', 'wasd-knob', 55, (nx, ny) => {
   const t = 0.35;
-  const dirs = { w: ny < -t, s: ny > t, a: nx < -t, d: nx > t };
+  const isRace = mode === 'race';
+  const dirs = { w: !isRace && ny < -t, s: !isRace && ny > t, a: nx < -t, d: nx > t };
   for (const [k, on] of Object.entries(dirs)) {
     if (on && !stickState[k]) {
       stickState[k] = true;
@@ -740,15 +912,19 @@ makeStick('wasd-zone', 'wasd-knob', 55, (nx, ny) => {
   }
 });
 
-// ── Mouse joystick ─────────────────────────────────────────────────────────
+// ── Mouse joystick ────────────────────────────────────────────────────────
+// Converts joystick position into a velocity vector sent on each tick.
+// GTA mode inverts the Y axis to match in-game camera behaviour.
 makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
-  const speed = mode === 'gta' ? 20 : 10;
+  const baseSpeed = mode === 'gta' ? 20 : 10;
+  const speed = baseSpeed + _sensBonus * 0.3;
   const factor = Math.min(dist, 1);
   _mouseVx = nx * factor * speed;
-  _mouseVy = (mode === 'gta' ? -ny : ny) * factor * speed;
+  _mouseVy = ny * factor * speed;
 }, () => { _mouseVx = 0; _mouseVy = 0; }, true);
 
-// ── Scroll pad ─────────────────────────────────────────────────────────────
+// ── Scroll pad ────────────────────────────────────────────────────────────
+// Tracks pointer delta on the scroll pad and emits scroll commands.
 (function() {
   const pad = document.getElementById('scroll-pad');
   let activeId = null, lastX = 0, lastY = 0, _fbTimeout = null;
@@ -780,7 +956,17 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
   pad.addEventListener('pointercancel', e => { if (e.pointerId === activeId) activeId = null; });
 })();
 
-// ── Generic stick factory ──────────────────────────────────────────────────
+// ── Generic stick factory ─────────────────────────────────────────────────
+/**
+ * Creates a virtual joystick inside a circular zone element.
+ *
+ * @param {string}   zoneId     - ID of the outer zone element.
+ * @param {string}   knobId     - ID of the draggable knob element.
+ * @param {number}   radius     - Maximum knob displacement in pixels.
+ * @param {Function} onMove     - Called with (nx, ny, dist) on each movement.
+ * @param {Function} onRelease  - Called when the pointer is released.
+ * @param {boolean}  continuous - If true, onMove is called on a timer loop.
+ */
 function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   const zone = document.getElementById(zoneId);
   const knob = document.getElementById(knobId);
@@ -830,7 +1016,7 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   zone.addEventListener('pointercancel', release);
 }
 
-// ── Toggle key (inventário / players) ────────────────────────────────────
+// ── Toggle key ────────────────────────────────────────────────────────────
 const _toggleKeys = {};
 function toggleKey(key, btnId) {
   _toggleKeys[key] = !_toggleKeys[key];
@@ -842,6 +1028,13 @@ function toggleKey(key, btnId) {
 }
 
 // ── Mouse hold (GTA) ──────────────────────────────────────────────────────
+/**
+ * Toggles a mouse button between held-down and released states.
+ * Used in GTA mode to hold aim (RMB) or fire (LMB) without keeping a finger pressed.
+ *
+ * @param {'left'|'right'} button - Mouse button to toggle.
+ * @param {string}         btnId  - Button element ID for visual feedback.
+ */
 const _mouseHold = { left: false, right: false };
 function toggleMouseHold(button, btnId) {
   _mouseHold[button] = !_mouseHold[button];
@@ -854,7 +1047,6 @@ function toggleMouseHold(button, btnId) {
 
 function onMouseBtnDown(button) {
   if (_mouseHold[button]) {
-    // seg. ativo: desativa e não envia mousedown extra
     toggleMouseHold(button, button === 'left' ? 'btn-hold-left' : 'btn-hold-right');
   } else {
     send({ action: 'mousedown', button });
@@ -864,22 +1056,244 @@ function onMouseBtnUp(button) {
   if (!_mouseHold[button]) send({ action: 'mouseup', button });
 }
 
-// ── Keyboard ───────────────────────────────────────────────────────────────
+// Registra LMB e RMB com setPointerCapture para funcionar com múltiplos toques
+(function() {
+  function makeMouseBtn(id, button) {
+    const el = document.getElementById(id);
+    let activeId = null;
+    el.addEventListener('pointerdown', e => {
+      if (activeId !== null) return;
+      e.preventDefault();
+      activeId = e.pointerId;
+      el.setPointerCapture(e.pointerId);
+      onMouseBtnDown(button);
+    });
+    el.addEventListener('pointerup', e => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      onMouseBtnUp(button);
+    });
+    el.addEventListener('pointercancel', e => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      onMouseBtnUp(button);
+    });
+  }
+  makeMouseBtn('lmb-btn', 'left');
+  makeMouseBtn('rmb-btn', 'right');
+
+  function makeSegBtn(id, button) {
+    const el = document.getElementById(id);
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      toggleMouseHold(button, id);
+    });
+  }
+  makeSegBtn('btn-hold-left',  'left');
+  makeSegBtn('btn-hold-right', 'right');
+})();
+
+// ── Keyboard overlay ──────────────────────────────────────────────────────
 let shiftOn = false;
+
+/** Toggles the full keyboard overlay visibility. */
 function toggleKb() {
   document.getElementById('kb-overlay').classList.toggle('open');
 }
+/**
+ * Sends a keypress command, prepending Shift if the shift toggle is active.
+ *
+ * @param {string} key - Key name to tap.
+ */
 function kbTap(key) {
   const mods = shiftOn ? ['shift'] : [];
   send({ action:'keypress', key, modifiers: mods });
   if (shiftOn) { shiftOn = false; document.querySelectorAll('.kb-key').forEach(k => k.style.color = ''); }
 }
+/** Toggles the Shift modifier and highlights all keys to indicate the active state. */
 function kbToggleShift() {
   shiftOn = !shiftOn;
   document.querySelectorAll('.kb-key').forEach(k => k.style.color = shiftOn ? '#60a5fa' : '');
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+// ── Fullscreen guard ─────────────────────────────────────────────────────
+document.addEventListener('fullscreenchange', () => {
+  const overlay = document.getElementById('fullscreen-overlay');
+  const isFs = !!document.fullscreenElement;
+  overlay.style.display = isFs ? 'none' : 'flex';
+});
+
+// ── Pedais corrida ───────────────────────────────────────────────────────
+// Usa setPointerCapture para garantir que o keydown/keyup funcione
+// mesmo com outro dedo no joystick simultaneamente.
+(function() {
+  function makePedal(id, key) {
+    const el = document.getElementById(id);
+    let activeId = null;
+    el.addEventListener('pointerdown', e => {
+      if (activeId !== null) return;
+      e.preventDefault();
+      activeId = e.pointerId;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('pressed');
+      send({ action: 'keydown', key });
+    });
+    el.addEventListener('pointerup', e => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      el.classList.remove('pressed');
+      send({ action: 'keyup', key });
+    });
+    el.addEventListener('pointercancel', e => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      el.classList.remove('pressed');
+      send({ action: 'keyup', key });
+    });
+  }
+  makePedal('pedal-accel', 'w');
+  makePedal('pedal-brake', 's');
+})();
+
+// ── Button registration helpers ───────────────────────────────────────────
+/**
+ * Registra um botão de ação (keydown/keyup) com setPointerCapture.
+ * @param {string} id
+ * @param {string} key
+ * @param {'press'|'hold'} type - 'press' = keypress, 'hold' = keydown+keyup
+ */
+function regKey(id, key, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let activeId = null;
+  el.addEventListener('pointerdown', e => {
+    if (activeId !== null) return;
+    e.preventDefault();
+    activeId = e.pointerId;
+    el.setPointerCapture(e.pointerId);
+    if (type === 'hold') send({ action: 'keydown', key });
+    else send({ action: 'keypress', key });
+  });
+  if (type === 'hold') {
+    const up = e => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      send({ action: 'keyup', key });
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  } else {
+    el.addEventListener('pointerup',     e => { if (e.pointerId === activeId) activeId = null; });
+    el.addEventListener('pointercancel', e => { if (e.pointerId === activeId) activeId = null; });
+  }
+}
+
+/**
+ * Registra um botão toggle (click) com setPointerCapture para não bloquear outros toques.
+ * @param {string} id
+ * @param {Function} fn
+ */
+function regClick(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointerup', e => {
+    if (el.hasPointerCapture(e.pointerId)) fn();
+  });
+}
+
+/**
+ * Registra seta direcional (keydown/keyup) com setPointerCapture e feedback visual.
+ */
+function regArrow(id, key) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let activeId = null;
+  el.addEventListener('pointerdown', e => {
+    if (activeId !== null) return;
+    e.preventDefault();
+    activeId = e.pointerId;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('active');
+    send({ action: 'keydown', key });
+  });
+  const up = e => {
+    if (e.pointerId !== activeId) return;
+    activeId = null;
+    el.classList.remove('active');
+    send({ action: 'keyup', key });
+  };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+}
+
+// ── Entry point ───────────────────────────────────────────────────────────
+// Botões de ação simples (keypress)
+regKey('btn-esc-game',  'escape', 'press');
+regKey('btn-esc-gta',   'escape', 'press');
+regKey('btn-esc-race',  'escape', 'press');
+regKey('btn-esc-pc',    'escape', 'press');
+regKey('btn-players-gta', 'z',   'press');
+regKey('btn-gta-e',     'e',     'press');
+regKey('btn-game-e',    'e',     'press');
+regKey('btn-game-f',    'f',     'press');
+regKey('btn-game-r',    'r',     'press');
+regKey('btn-gta-h',     'h',     'press');
+regKey('btn-gta-f',     'f',     'press');
+regKey('btn-gta-g',     'g',     'press');
+regKey('btn-gta-enter', 'return','press');
+regKey('btn-game-tab',  'tab',   'press');
+regKey('btn-pc-tab',    'tab',   'press');
+regKey('btn-pc-enter',  'return','press');
+regKey('btn-pc-backspace','backspace','press');
+
+// Botões hold (keydown+keyup)
+regKey('btn-space',     'space', 'hold');
+regKey('btn-gta-space', 'space', 'hold');
+
+// Setas direcionais
+regArrow('arr-up',    'up');
+regArrow('arr-down',  'down');
+regArrow('arr-left',  'left');
+regArrow('arr-right', 'right');
+
+// Botões toggle (click)
+regClick('btn-mode-game',  () => setMode('game'));
+regClick('btn-mode-gta',   () => setMode('gta'));
+regClick('btn-mode-race',  () => setMode('race'));
+regClick('btn-mode-pc',    () => setMode('pc'));
+regClick('btn-mode-sens',  () => document.getElementById('sens-overlay').classList.add('open'));
+regClick('btn-sens-close', () => document.getElementById('sens-overlay').classList.remove('open'));
+
+document.getElementById('sens-slider').addEventListener('input', function() {
+  _sensBonus = +this.value;
+  document.getElementById('sens-label').textContent = '+' + _sensBonus;
+});
+regClick('btn-kb-toggle',  toggleKb);
+regClick('btn-kb-toggle-big', toggleKb);
+regClick('btn-logout',     () => document.getElementById('connect-overlay').style.display = 'flex');
+regClick('btn-shift-game', () => toggleKey('shift', 'btn-shift-game'));
+regClick('btn-ctrl-game',  () => toggleKey('ctrl',  'btn-ctrl-game'));
+regClick('btn-run',        () => toggleKey('shift', 'btn-run'));
+regClick('btn-inv',        () => toggleKey('tab',   'btn-inv'));
+
+// Teclado overlay: kb-keys via data-kb + setPointerCapture
+document.querySelectorAll('.kb-key[data-kb]').forEach(el => {
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointerup', e => {
+    if (el.hasPointerCapture(e.pointerId)) kbTap(el.dataset.kb);
+  });
+});
+regClick('kb-shift',    kbToggleShift);
+regClick('btn-kb-close', toggleKb);
+
 setMode('game');
 </script>
 </body>

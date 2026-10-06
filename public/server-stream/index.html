@@ -27,16 +27,39 @@
   </svg>
 </div>
 <script>
+/**
+ * server-stream/index.html — WebRTC stream viewer
+ *
+ * Connects to the signaling server as a 'viewer', sends an SDP offer to the
+ * stream agent, and renders the incoming video/audio tracks in a fullscreen
+ * <video> element.
+ *
+ * The viewer ID is persisted in sessionStorage so a page reload reuses the
+ * same signaling slot instead of creating a duplicate registration.
+ */
+
+// ── Configuration ──────────────────────────────────────────────────────────
+
 const SIGNAL_URL = 'wss://game.mexpenses.com.br/ws';
-const VIEWER_ID  = sessionStorage.getItem('viewer-id') || (() => {
+
+// Reuse the viewer ID across reloads within the same browser tab.
+const VIEWER_ID = sessionStorage.getItem('viewer-id') || (() => {
   const id = 'viewer-' + Math.random().toString(36).slice(2, 8);
   sessionStorage.setItem('viewer-id', id);
   return id;
 })();
-const STREAM_ID  = 'stream-agent';
+
+const STREAM_ID = 'stream-agent';
 
 let pc = null, ws = null;
 
+// ── Signaling ──────────────────────────────────────────────────────────────
+
+/**
+ * Opens (or re-opens) the WebSocket connection to the signaling server.
+ * Registers as 'viewer' and reacts to peer-ready / answer / ICE messages.
+ * Reconnects automatically after 3 s on close.
+ */
 function openWS() {
   ws = new WebSocket(SIGNAL_URL);
 
@@ -46,8 +69,19 @@ function openWS() {
 
   ws.onmessage = async (e) => {
     const msg = JSON.parse(e.data);
+
+    // Stream agent is online — initiate the WebRTC handshake.
     if (msg.type === 'peer-ready') await startPeer();
-    if (msg.type === 'answer') await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+
+    if (msg.type === 'answer') {
+      await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+      // Minimise playout buffer on supported browsers for lower latency.
+      pc.getReceivers().forEach(r => {
+        if (r.track.kind === 'video' && 'playoutDelayHint' in r) r.playoutDelayHint = 0;
+        if (r.track.kind === 'audio' && 'playoutDelayHint' in r) r.playoutDelayHint = 0;
+      });
+    }
+
     if (msg.type === 'ice') try { await pc.addIceCandidate(msg.candidate); } catch {}
   };
 
@@ -55,21 +89,30 @@ function openWS() {
   ws.onerror = () => ws.close();
 }
 
+// ── WebRTC ─────────────────────────────────────────────────────────────────
+
+/**
+ * Creates a new RTCPeerConnection in receive-only mode, attaches the remote
+ * stream to the <video> element, and sends an SDP offer to the stream agent.
+ */
 async function startPeer() {
   if (pc) { try { pc.close(); } catch {} }
   pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
+  // Attach the first received stream to the video element (set once).
   pc.ontrack = (e) => {
     const video = document.getElementById('video');
     if (video.srcObject) return;
     video.srcObject = e.streams[0];
   };
 
+  // Forward local ICE candidates to the stream agent via signaling.
   pc.onicecandidate = ({ candidate }) => {
     if (candidate && ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: 'ice', to: STREAM_ID, candidate }));
   };
 
+  // Declare receive-only transceivers so the SDP offer includes the right media sections.
   pc.addTransceiver('video', { direction: 'recvonly' });
   pc.addTransceiver('audio', { direction: 'recvonly' });
 
@@ -78,15 +121,19 @@ async function startPeer() {
   ws.send(JSON.stringify({ type: 'offer', to: STREAM_ID, sdp: offer.sdp }));
 }
 
+// ── Overlay click — unmute and go fullscreen ───────────────────────────────
+// Browsers require a user gesture before allowing autoplay with audio.
+
 document.getElementById('overlay').addEventListener('click', () => {
   document.getElementById('overlay').style.display = 'none';
   const video = document.getElementById('video');
-  video.muted = false;
+  video.muted  = false;
   video.volume = 1;
   video.play().catch(() => {});
   document.documentElement.requestFullscreen().catch(() => {});
 });
 
+// ── Entry point ────────────────────────────────────────────────────────────
 openWS();
 </script>
 </body>

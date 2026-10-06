@@ -9,7 +9,6 @@
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.1",
     "@roamhq/wrtc": "^0.10.0",
-    "node-datachannel": "^0.10.0",
     "ws": "^8.17.0"
   }
 }

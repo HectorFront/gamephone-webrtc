@@ -61,7 +61,8 @@ function startFFmpeg() {
 
   let frameCount = 0;
   writePos = 0;
-  ffmpeg.stdout.on('data', (chunk) => {
+  ffmpeg.stdout.on('data', (raw) => {
+    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
     let src = 0;
     while (src < chunk.length) {
       const space = Math.min(chunk.length - src, FRAME_SIZE - writePos);
@@ -97,7 +98,8 @@ function startFFmpeg() {
   ffmpegAudio.stderr.on('data', (d) => console.error('[ffmpeg-audio]', d.toString().trim()));
 
   audioWritePos = 0;
-  ffmpegAudio.stdout.on('data', (chunk) => {
+  ffmpegAudio.stdout.on('data', (raw) => {
+    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
     let src = 0;
     while (src < chunk.length) {
       const space = Math.min(chunk.length - src, AUDIO_FRAME_BYTES - audioWritePos);
