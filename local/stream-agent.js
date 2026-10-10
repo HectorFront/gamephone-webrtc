@@ -1,97 +1,92 @@
-const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, MediaStream } = require('@roamhq/wrtc');
-const { RTCVideoSource, RTCAudioSource } = require('@roamhq/wrtc').nonstandard;
+const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, MediaStream } = require('wrtc');
+const { RTCAudioSource } = require('wrtc').nonstandard;
 const WebSocket = require('ws');
 const { spawn } = require('child_process');
 
 const SIGNAL_URL   = 'wss://game.mexpenses.com.br/ws';
 const STREAM_ID    = 'stream-agent';
-// rode: ffmpeg -list_devices true -f dshow -i dummy
 const AUDIO_DEVICE = 'CABLE Output (VB-Audio Virtual Cable)';
 
 const WIDTH  = 1280;
 const HEIGHT = 720;
 const FPS    = 30;
 
-// ── Vídeo ──────────────────────────────────────────────────────────────────
-const FRAME_SIZE = WIDTH * HEIGHT * 3 / 2;
-const frameAB    = new ArrayBuffer(FRAME_SIZE);
-const i420Data   = new Uint8ClampedArray(frameAB);
-const ringBuf    = Buffer.from(frameAB);
-const i420Frame  = { width: WIDTH, height: HEIGHT, data: i420Data };
-let   writePos   = 0;
-
-// ── Áudio ──────────────────────────────────────────────────────────────────
+// ── Audio WebRTC ─────────────────────────────────────────────────────────
 const SAMPLE_RATE       = 44100;
 const CHANNELS          = 2;
-const SAMPLES_FRAME     = SAMPLE_RATE / 100; // 10ms = 441 samples
-const AUDIO_FRAME_BYTES = SAMPLES_FRAME * CHANNELS * 2; // s16le
+const SAMPLES_FRAME     = SAMPLE_RATE / 100;
+const AUDIO_FRAME_BYTES = SAMPLES_FRAME * CHANNELS * 2;
 const audioAB           = new ArrayBuffer(AUDIO_FRAME_BYTES);
 const audioSamples      = new Int16Array(audioAB);
 const audioRing         = Buffer.from(audioAB);
 let   audioWritePos     = 0;
 
-const videoSource = new RTCVideoSource();
 const audioSource = new RTCAudioSource();
-const videoTrack  = videoSource.createTrack();
 const audioTrack  = audioSource.createTrack();
-const stream      = new MediaStream([videoTrack, audioTrack]);
+const audioStream = new MediaStream([audioTrack]);
 
-let ffmpeg      = null;
+let ffmpegVideo = null;
 let ffmpegAudio = null;
 
-function startFFmpeg() {
-  if (ffmpeg) return;
-  console.log('[Stream] Iniciando ffmpeg vídeo...');
+// ── Viewers ────────────────────────────────────────────────────────────────
+const viewers = new Map(); // viewerId -> { ws, pc, dcVideo }
 
-  ffmpeg = spawn('ffmpeg', [
-    '-fflags', 'nobuffer',
-    '-flags', 'low_delay',
-    '-f', 'gdigrab',
-    '-framerate', String(FPS),
-    '-probesize', '32',
-    '-i', 'desktop',
-    '-vf', `scale=${WIDTH}:${HEIGHT}`,
-    '-f', 'rawvideo',
-    '-pix_fmt', 'yuv420p',
-    '-threads', '4',
+function broadcastNAL(buf) {
+  for (const [, v] of viewers) {
+    if (v.dcVideo && v.dcVideo.readyState === 'open') {
+      try { v.dcVideo.send(buf); } catch {}
+    }
+  }
+}
+
+// ── ffmpeg H264 ────────────────────────────────────────────────────────────
+function startFFmpeg() {
+  if (ffmpegVideo) return;
+  console.log('[Stream] Starting ffmpeg H264...');
+
+  ffmpegVideo = spawn('ffmpeg', [
+    '-fflags',          'nobuffer+discardcorrupt',
+    '-flags',           'low_delay',
+    '-f',               'gdigrab',
+    '-framerate',       String(FPS),
+    '-probesize',       '32',
+    '-analyzeduration', '0',
+    '-i',               'desktop',
+    '-vf',              `scale=${WIDTH}:${HEIGHT},fps=${FPS},format=yuv420p`,
+    // H264 encode — ultrafast + zerolatency = minimum latency
+    '-c:v',             'libx264',
+    '-preset',          'ultrafast',
+    '-tune',            'zerolatency',
+    '-profile:v',       'baseline',
+    '-level',           '3.1',
+    '-x264-params',     'keyint=30:min-keyint=30:scenecut=0',
+    '-bf',              '0',
+    // Output Annex B (NAL units with start codes 0x00000001)
+    '-f',               'h264',
     'pipe:1',
   ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
-  ffmpeg.stderr.on('data', (d) => console.error('[ffmpeg]', d.toString().trim()));
-
-  let frameCount = 0;
-  writePos = 0;
-  ffmpeg.stdout.on('data', (raw) => {
-    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
-    let src = 0;
-    while (src < chunk.length) {
-      const space = Math.min(chunk.length - src, FRAME_SIZE - writePos);
-      chunk.copy(ringBuf, writePos, src, src + space);
-      writePos += space;
-      src += space;
-      if (writePos === FRAME_SIZE) {
-        frameCount++;
-        if (frameCount % 30 === 0) console.log('[Stream] frames enviados:', frameCount);
-        try { videoSource.onFrame(i420Frame); } catch(e) { console.error('[onFrame]', e.message); }
-        writePos = 0;
-      }
-    }
+  ffmpegVideo.stderr.on('data', (d) => {
+    console.error('[ffmpeg]', d.toString().trim());
   });
 
-  ffmpeg.on('close', (code) => {
-    console.log(`[Stream] ffmpeg vídeo encerrou (${code})`);
-    ffmpeg = null;
+  // Send raw H264 stream — browser handles parsing
+  ffmpegVideo.stdout.on('data', (chunk) => broadcastNAL(chunk));
+
+  ffmpegVideo.on('close', (code) => {
+    console.log(`[Stream] ffmpeg H264 closed (${code})`);
+    ffmpegVideo = null;
   });
 
-  // ── Áudio ────────────────────────────────────────────────────────────────
-  console.log('[Stream] Iniciando ffmpeg áudio...');
+  // ── Audio ─────────────────────────────────────────────────────────────────
+  console.log('[Stream] Starting ffmpeg audio...');
   ffmpegAudio = spawn('ffmpeg', [
     '-fflags', 'nobuffer',
-    '-f', 'dshow',
-    '-i', `audio=${AUDIO_DEVICE}`,
-    '-f', 's16le',
-    '-ar', String(SAMPLE_RATE),
-    '-ac', String(CHANNELS),
+    '-f',      'dshow',
+    '-i',      `audio=${AUDIO_DEVICE}`,
+    '-f',      's16le',
+    '-ar',     String(SAMPLE_RATE),
+    '-ac',     String(CHANNELS),
     'pipe:1',
   ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 
@@ -122,26 +117,25 @@ function startFFmpeg() {
   });
 
   ffmpegAudio.on('close', (code) => {
-    console.log(`[Stream] ffmpeg áudio encerrou (${code})`);
+    console.log(`[Stream] ffmpeg audio closed (${code})`);
     ffmpegAudio = null;
   });
 }
 
 function stopFFmpeg() {
-  if (ffmpeg)      { ffmpeg.kill('SIGKILL');      ffmpeg = null; }
+  if (ffmpegVideo) { ffmpegVideo.kill('SIGKILL'); ffmpegVideo = null; }
   if (ffmpegAudio) { ffmpegAudio.kill('SIGKILL'); ffmpegAudio = null; }
 }
 
 // ── WebRTC + Signaling ─────────────────────────────────────────────────────
-const peers = new Map(); // viewerId -> { pc, pendingIce }
-let ws  = null;
+let ws = null;
 
 function openWS() {
   ws = new WebSocket(SIGNAL_URL);
 
   ws.on('open', () => {
     ws.send(JSON.stringify({ type: 'register', role: 'agent-stream', id: STREAM_ID }));
-    console.log('[Signal] Registrado como', STREAM_ID);
+    console.log('[Signal] Registered as', STREAM_ID);
   });
 
   ws.on('message', async (raw) => {
@@ -152,15 +146,25 @@ function openWS() {
     if (msg.type === 'offer') {
       const viewerId = msg.from;
 
-      // fecha conexão anterior deste viewer se existir
-      if (peers.has(viewerId)) {
-        try { peers.get(viewerId).pc.close(); } catch {}
-        peers.delete(viewerId);
+      if (viewers.has(viewerId)) {
+        try { viewers.get(viewerId).pc.close(); } catch {}
+        viewers.delete(viewerId);
       }
 
       const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-      const entry = { pc, pendingIce: [] };
-      peers.set(viewerId, entry);
+      const entry = { pc, dcVideo: null, pendingIce: [] };
+      viewers.set(viewerId, entry);
+
+      // Audio via WebRTC track
+      pc.addTrack(audioTrack, audioStream);
+
+      // DataChannel created by viewer — agent receives it here
+      pc.ondatachannel = (e) => {
+        if (e.channel.label !== 'video') return;
+        entry.dcVideo = e.channel;
+        entry.dcVideo.onopen  = () => console.log(`[DC:${viewerId}] video open`);
+        entry.dcVideo.onclose = () => console.log(`[DC:${viewerId}] video closed`);
+      };
 
       pc.onicecandidate = ({ candidate }) => {
         if (candidate && ws.readyState === WebSocket.OPEN)
@@ -171,29 +175,23 @@ function openWS() {
         console.log(`[WebRTC:${viewerId}] State:`, pc.connectionState);
         if (pc.connectionState === 'connected') startFFmpeg();
         if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          peers.delete(viewerId);
+          viewers.delete(viewerId);
           try { pc.close(); } catch {}
-          if (peers.size === 0) stopFFmpeg();
+          if (viewers.size === 0) stopFFmpeg();
         }
       };
 
       await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
-      pc.addTrack(videoTrack, stream);
-      pc.addTrack(audioTrack, stream);
       entry.pendingIce.forEach(c => { try { pc.addIceCandidate(new RTCIceCandidate(c)); } catch {} });
       entry.pendingIce = [];
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      const sdp = answer.sdp
-        .replace(/a=rtcp-fb:(.+) transport-cc/g, 'a=rtcp-fb:$1 transport-cc')
-        .replace(/(m=video[\s\S]*?)(a=rtpmap)/,
-          '$1a=fmtp:96 x-google-min-bitrate=2000;x-google-max-bitrate=6000\r\n$2');
-      ws.send(JSON.stringify({ type: 'answer', to: viewerId, sdp }));
+      ws.send(JSON.stringify({ type: 'answer', to: viewerId, sdp: answer.sdp }));
     }
 
     if (msg.type === 'ice') {
-      const entry = peers.get(msg.from);
+      const entry = viewers.get(msg.from);
       if (!entry) return;
       if (entry.pc.remoteDescription) {
         try { await entry.pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch {}
@@ -204,13 +202,13 @@ function openWS() {
   });
 
   ws.on('close', () => {
-    console.log('[Signal] Desconectado, reconectando...');
+    console.log('[Signal] Disconnected, reconnecting...');
     stopFFmpeg();
-    peers.forEach(({ pc }) => { try { pc.close(); } catch {} });
-    peers.clear();
+    viewers.forEach(({ pc }) => { try { pc.close(); } catch {} });
+    viewers.clear();
     setTimeout(openWS, 3000);
   });
-  ws.on('error', (e) => console.error('[Signal] Erro:', e.message));
+  ws.on('error', (e) => console.error('[Signal] Error:', e.message));
 }
 
 openWS();

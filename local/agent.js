@@ -14,7 +14,7 @@
  *   4. Relay DataChannel messages to the worker queue.
  */
 
-const { RTCPeerConnection } = require('@roamhq/wrtc');
+const { RTCPeerConnection } = require('wrtc');
 const WebSocket = require('ws');
 const { Worker } = require('worker_threads');
 const path = require('path');

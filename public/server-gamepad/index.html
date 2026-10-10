@@ -309,7 +309,7 @@
     <div class="kb-key wider" data-kb="return">ENTER ↵</div>
   </div>
   <div class="kb-row">
-    <div class="kb-key wider" id="kb-shift"><span class="material-icons" style="font-size:.8rem">shift</span> SHIFT</div>
+    <div class="kb-key wider" id="kb-shift">⇧ SHIFT</div>
     <div class="kb-key" data-kb="z">Z</div>
     <div class="kb-key" data-kb="x">X</div>
     <div class="kb-key" data-kb="c">C</div>
@@ -789,7 +789,12 @@ function openWS() {
   };
 
   ws.onclose = () => {
-    if (!dc || dc.readyState !== 'open') setStatus(false);
+    if (dc && dc.readyState === 'open') {
+      // DataChannel ainda ativo — reconecta WS silenciosamente para manter sinalização
+      setTimeout(openWS, 3000);
+    } else {
+      setStatus(false);
+    }
   };
 }
 
@@ -858,7 +863,7 @@ function setStatus(ok) {
   }
   if (ok) {
     clearTimeout(_connTimeout); _connTimeout = null;
-    setStep('step-rtc', 'done');
+    setStep('rtc', 'done');
     document.getElementById('conn-btn').disabled = false;
     document.getElementById('connect-overlay').style.display = 'none';
   } else {
@@ -1233,23 +1238,23 @@ function regArrow(id, key) {
 
 // ── Entry point ───────────────────────────────────────────────────────────
 // Botões de ação simples (keypress)
-regKey('btn-esc-game',  'escape', 'press');
-regKey('btn-esc-gta',   'escape', 'press');
-regKey('btn-esc-race',  'escape', 'press');
-regKey('btn-esc-pc',    'escape', 'press');
-regKey('btn-players-gta', 'z',   'press');
-regKey('btn-gta-e',     'e',     'press');
-regKey('btn-game-e',    'e',     'press');
-regKey('btn-game-f',    'f',     'press');
-regKey('btn-game-r',    'r',     'press');
-regKey('btn-gta-h',     'h',     'press');
-regKey('btn-gta-f',     'f',     'press');
-regKey('btn-gta-g',     'g',     'press');
-regKey('btn-gta-enter', 'return','press');
-regKey('btn-game-tab',  'tab',   'press');
-regKey('btn-pc-tab',    'tab',   'press');
-regKey('btn-pc-enter',  'return','press');
-regKey('btn-pc-backspace','backspace','press');
+regKey('btn-esc-game',  'escape', 'hold');
+regKey('btn-esc-gta',   'escape', 'hold');
+regKey('btn-esc-race',  'escape', 'hold');
+regKey('btn-esc-pc',    'escape', 'hold');
+regKey('btn-players-gta', 'z',   'hold');
+regKey('btn-gta-e',     'e',     'hold');
+regKey('btn-game-e',    'e',     'hold');
+regKey('btn-game-f',    'f',     'hold');
+regKey('btn-game-r',    'r',     'hold');
+regKey('btn-gta-h',     'h',     'hold');
+regKey('btn-gta-f',     'f',     'hold');
+regKey('btn-gta-g',     'g',     'hold');
+regKey('btn-gta-enter', 'return','hold');
+regKey('btn-game-tab',  'tab',   'hold');
+regKey('btn-pc-tab',    'tab',   'hold');
+regKey('btn-pc-enter',  'return','hold');
+regKey('btn-pc-backspace','backspace','hold');
 
 // Botões hold (keydown+keyup)
 regKey('btn-space',     'space', 'hold');
@@ -1283,12 +1288,26 @@ regClick('btn-inv',        () => toggleKey('tab',   'btn-inv'));
 
 // Teclado overlay: kb-keys via data-kb + setPointerCapture
 document.querySelectorAll('.kb-key[data-kb]').forEach(el => {
+  let activeId = null;
   el.addEventListener('pointerdown', e => {
+    if (activeId !== null) return;
     e.preventDefault();
+    activeId = e.pointerId;
     el.setPointerCapture(e.pointerId);
+    const mods = shiftOn ? ['shift'] : [];
+    send({ action: 'keydown', key: el.dataset.kb, modifiers: mods });
   });
   el.addEventListener('pointerup', e => {
-    if (el.hasPointerCapture(e.pointerId)) kbTap(el.dataset.kb);
+    if (e.pointerId !== activeId) return;
+    activeId = null;
+    const mods = shiftOn ? ['shift'] : [];
+    send({ action: 'keyup', key: el.dataset.kb, modifiers: mods });
+    if (shiftOn) { shiftOn = false; document.querySelectorAll('.kb-key').forEach(k => k.style.color = ''); }
+  });
+  el.addEventListener('pointercancel', e => {
+    if (e.pointerId !== activeId) return;
+    activeId = null;
+    send({ action: 'keyup', key: el.dataset.kb });
   });
 });
 regClick('kb-shift',    kbToggleShift);
