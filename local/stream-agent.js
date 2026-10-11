@@ -11,7 +11,7 @@ const WIDTH  = 1280;
 const HEIGHT = 720;
 const FPS    = 30;
 
-// ── Audio WebRTC ─────────────────────────────────────────────────────────
+// Audio WebRTC
 const SAMPLE_RATE       = 44100;
 const CHANNELS          = 2;
 const SAMPLES_FRAME     = SAMPLE_RATE / 100;
@@ -28,7 +28,7 @@ const audioStream = new MediaStream([audioTrack]);
 let ffmpegVideo = null;
 let ffmpegAudio = null;
 
-// ── Viewers ────────────────────────────────────────────────────────────────
+// Viewers
 const viewers = new Map(); // viewerId -> { ws, pc, dcVideo }
 
 function broadcastNAL(buf) {
@@ -39,7 +39,7 @@ function broadcastNAL(buf) {
   }
 }
 
-// ── ffmpeg H264 ────────────────────────────────────────────────────────────
+// ffmpeg H264
 function startFFmpeg() {
   if (ffmpegVideo) return;
   console.log('[Stream] Starting ffmpeg H264...');
@@ -53,7 +53,7 @@ function startFFmpeg() {
     '-analyzeduration', '0',
     '-i',               'desktop',
     '-vf',              `scale=${WIDTH}:${HEIGHT},fps=${FPS},format=yuv420p`,
-    // H264 encode — ultrafast + zerolatency = minimum latency
+    // H264 encode: ultrafast + zerolatency = minimum latency
     '-c:v',             'libx264',
     '-preset',          'ultrafast',
     '-tune',            'zerolatency',
@@ -78,7 +78,7 @@ function startFFmpeg() {
     ffmpegVideo = null;
   });
 
-  // ── Audio ─────────────────────────────────────────────────────────────────
+  // Audio
   console.log('[Stream] Starting ffmpeg audio...');
   ffmpegAudio = spawn('ffmpeg', [
     '-fflags', 'nobuffer',
@@ -127,7 +127,7 @@ function stopFFmpeg() {
   if (ffmpegAudio) { ffmpegAudio.kill('SIGKILL'); ffmpegAudio = null; }
 }
 
-// ── WebRTC + Signaling ─────────────────────────────────────────────────────
+// WebRTC + Signaling
 let ws = null;
 
 function openWS() {

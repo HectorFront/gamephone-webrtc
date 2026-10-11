@@ -34,7 +34,7 @@ wss.on('connection', (ws) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
-    // ── Register ─────────────────────────────────────────────────────────
+    // Register
     if (msg.type === 'register') {
       // Replace any stale connection registered under the same id.
       if (clients.has(msg.id)) {
@@ -74,13 +74,13 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // ── Signaling keep-alive ping ─────────────────────────────────────────
+    // Signaling keep-alive ping
     if (msg.type === 'ping-signal') {
       ws.send(JSON.stringify({ type: 'pong-signal' }));
       return;
     }
 
-    // ── Relay — forward any message with a 'to' field to the target client ─
+    // Relay: forward any message with a 'to' field to the target client
     if (msg.to) {
       console.log(`[relay] ${clientId} -> ${msg.to} (${msg.type})`);
       if (clients.has(msg.to)) {

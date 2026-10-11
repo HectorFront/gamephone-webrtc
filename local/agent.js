@@ -19,13 +19,12 @@ const WebSocket = require('ws');
 const { Worker } = require('worker_threads');
 const path = require('path');
 
-// ── Configuration ──────────────────────────────────────────────────────────
+// Configuration
 
 const SIGNAL_URL = 'wss://game.mexpenses.com.br/ws';
 const AGENT_ID   = 'agent-windows';
 
-// ── Input worker ───────────────────────────────────────────────────────────
-// Runs nut-js in a dedicated thread to avoid blocking the event loop.
+// Input worker: runs nut-js in a dedicated thread to avoid blocking the event loop.
 
 const worker = new Worker(path.join(__dirname, 'input-worker.js'));
 worker.on('error', e => console.error('[worker error]', e.message));
@@ -33,8 +32,7 @@ worker.on('error', e => console.error('[worker error]', e.message));
 worker.postMessage({ action: 'init', w: 1920, h: 720 });
 console.log('[Screen] Using default resolution 1920x720 — adjust in agent.js if needed');
 
-// ── Command queue ──────────────────────────────────────────────────────────
-// High-frequency events (mousemove, scroll) bypass the queue and are sent
+// Command queue: high-frequency events (mousemove, scroll) bypass the queue and are sent
 // directly to the worker to minimise latency. All other commands are
 // serialised to prevent race conditions in nut-js.
 
@@ -68,11 +66,11 @@ function drain() {
   setImmediate(() => { _busy = false; drain(); });
 }
 
-// ── WebRTC ─────────────────────────────────────────────────────────────────
+// WebRTC
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 
-// ── Signaling ──────────────────────────────────────────────────────────────
+// Signaling
 
 const ws = new WebSocket(SIGNAL_URL);
 let pc           = null;
@@ -89,7 +87,7 @@ ws.on('message', async (raw) => {
   try { msg = JSON.parse(raw); } catch { return; }
   console.log('[Signal] msg:', msg.type, 'from:', msg.from);
 
-  // ── Handle SDP offer from the controller ──────────────────────────────
+  // Handle SDP offer from the controller
   if (msg.type === 'offer') {
     controllerId = msg.from;
     _queue.length = 0; // discard stale commands from a previous session
@@ -119,7 +117,7 @@ ws.on('message', async (raw) => {
       }
     };
 
-    // ── DataChannel — receives input commands from the controller ────────
+    // DataChannel: receives input commands from the controller
     pc.ondatachannel = ({ channel: dc }) => {
       console.log('[DataChannel] Opened:', dc.label);
 
@@ -150,7 +148,7 @@ ws.on('message', async (raw) => {
     ws.send(JSON.stringify({ type: 'answer', to: controllerId, sdp: answer.sdp }));
   }
 
-  // ── Handle incoming ICE candidate from the controller ─────────────────
+  // Handle incoming ICE candidate from the controller
   if (msg.type === 'ice') {
     const candidate = typeof msg.candidate === 'object'
       ? msg.candidate

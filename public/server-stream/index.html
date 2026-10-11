@@ -39,7 +39,7 @@ let pc = null, ws = null;
 let videoDecoder = null, trackGenerator = null, trackWriter = null;
 let frameCounter = 0;
 
-// ── H264 decoder via WebCodecs ───────────────────────────────────────────────
+// H264 decoder via WebCodecs
 function initDecoder() {
   if (trackGenerator) { try { trackWriter.close(); } catch {} }
 
@@ -68,7 +68,7 @@ function initDecoder() {
   frameCounter = 0;
 }
 
-// ── Annex B stream parser — accumulates chunks and extracts NAL units ────────
+// Annex B stream parser: accumulates chunks and extracts NAL units
 const MAX_BUF = 2 * 1024 * 1024; // 2MB — reset if garbage accumulates
 let streamBuf = new Uint8Array(0);
 
@@ -98,7 +98,7 @@ function onChunk(data) {
   streamBuf = streamBuf.slice(prev);
 }
 
-// ── Group NALs into access units and decode ──────────────────────────────────
+// Group NALs into access units and decode
 let auNals = [];
 let auIsKey = false;
 
@@ -126,7 +126,7 @@ function flushAU() {
   auNals = []; auIsKey = false;
 }
 
-// ── WebRTC ─────────────────────────────────────────────────────────────────
+// WebRTC
 async function startPeer() {
   if (pc) { try { pc.close(); } catch {} }
   pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
@@ -162,7 +162,7 @@ async function startPeer() {
   ws.send(JSON.stringify({ type: 'offer', to: STREAM_ID, sdp: offer.sdp }));
 }
 
-// ── Signaling ──────────────────────────────────────────────────────────────
+// Signaling
 function openWS() {
   ws = new WebSocket(SIGNAL_URL);
 
@@ -181,7 +181,7 @@ function openWS() {
   ws.onerror = () => ws.close();
 }
 
-// ── Overlay ────────────────────────────────────────────────────────────────
+// Overlay
 document.getElementById('overlay').addEventListener('click', () => {
   document.getElementById('overlay').style.display = 'none';
   const video = document.getElementById('video');

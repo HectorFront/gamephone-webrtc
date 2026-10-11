@@ -29,12 +29,12 @@ const { mouse, keyboard, Key, Button, Point } = require('@nut-tree-fork/nut-js')
 const { spawn } = require('child_process');
 const path = require('path');
 
-// ── nut-js configuration ───────────────────────────────────────────────────
+// nut-js configuration
 
 mouse.config.mouseSpeed    = 9999; // instant positioning (no animation delay)
 keyboard.config.autoDelayMs = 0;   // no inter-key delay
 
-// ── Persistent PowerShell process for raw relative mouse input ─────────────
+// Persistent PowerShell process for raw relative mouse input
 // Reads "dx,dy\n" lines from stdin and calls SendInput with MOUSEEVENTF_MOVE.
 // This bypasses DirectInput/RawInput filtering that blocks nut-js in games.
 
@@ -58,7 +58,7 @@ const _sendInputRelative = (dx, dy) => {
 
 console.log('[input-worker] Relative SendInput active (persistent PowerShell)');
 
-// ── Key mapping ────────────────────────────────────────────────────────────
+// Key mapping
 // Maps lowercase key names received from the controller to nut-js Key enum names.
 
 const KEY_MAP = {
@@ -82,12 +82,12 @@ const KEY_MAP = {
  */
 function getKey(k) { return Key[KEY_MAP[k?.toLowerCase()] ?? k]; }
 
-// ── Screen dimensions ──────────────────────────────────────────────────────
+// Screen dimensions
 // Used for absolute mouse positioning. Updated via the 'init' command.
 
 let _screenW = 1920, _screenH = 720;
 
-// ── Message handler ────────────────────────────────────────────────────────
+// Message handler
 
 parentPort.on('message', async (cmd) => {
   try {

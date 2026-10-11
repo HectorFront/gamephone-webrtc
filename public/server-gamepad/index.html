@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Controle da Duquesa</title>
+<title>Controle do Jogador</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
 <style>
@@ -109,6 +109,37 @@
     transition: filter .08s, transform .08s;
   }
   .ctrl-btn:active, .ctrl-btn.pressed { filter: brightness(1.8); transform: scale(.92); }
+
+  /* Console face buttons — liquid glass */
+  .console-face-btn {
+    width: 64px; height: 64px; border-radius: 50%; border: none; outline: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; font-weight: 300; cursor: pointer;
+    backdrop-filter: blur(12px) saturate(1.6);
+    -webkit-backdrop-filter: blur(12px) saturate(1.6);
+    box-shadow: 0 2px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.2);
+    transition: transform .08s, box-shadow .08s, filter .08s;
+    position: relative; overflow: hidden;
+  }
+  .console-face-btn::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(160deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.04) 60%, transparent 100%);
+    pointer-events: none;
+  }
+  .console-face-btn:active { transform: scale(.88); box-shadow: 0 1px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1); filter: brightness(1.4); }
+  .console-face-btn.held { filter: brightness(1.6); transform: scale(.94); }
+  .console-face-btn-x   { background: rgba(96,165,250,.22);  color: #93c5fd; }
+  .console-face-btn-sq  { background: rgba(129,140,248,.22); color: #a5b4fc; }
+  .console-face-btn-ci  { background: rgba(248,113,113,.22); color: #fca5a5; }
+  .console-face-btn-tri { background: rgba(74,222,128,.22);  color: #86efac; }
+
+  /* Console seg button */
+  .console-seg-btn {
+    background: #1e1e1e; border-radius: 8px; padding: 6px 8px;
+    font-size: .7rem; color: #777; cursor: pointer; border: 1px solid #333;
+    transition: background .1s, color .1s;
+  }
+  .console-seg-btn.held { background: #3a1a0a; color: #fb923c; border-color: #7c2d12; }
 
   /* Shoulder */
   .shoulder {
@@ -232,7 +263,7 @@
 <div id="connect-overlay">
   <div class="conn-card">
     <span class="material-icons" style="font-size:2.2rem;color:#60a5fa">sports_esports</span>
-    <span style="font-size:1.1rem;font-weight:bold">Controle da Duquesa</span>
+    <span style="font-size:1.1rem;font-weight:bold">Controle do Jogador</span>
     <div style="width:100%;display:flex;flex-direction:column;gap:6px">
       <label style="font-size:.7rem;color:#555">Servidor</label>
       <input id="signal-url" value="wss://game.mexpenses.com.br/ws"/>
@@ -355,6 +386,9 @@
       <button id="btn-mode-game"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0f2a4a;color:#60a5fa">Game (Genérico)</button>
+      <button id="btn-mode-console"
+        class="text-xs px-3 py-1 rounded-full"
+        style="background:#0d0d0d;color:#444">Console</button>
       <button id="btn-mode-gta"
         class="text-xs px-3 py-1 rounded-full"
         style="background:#0d0d0d;color:#444">GTA</button>
@@ -373,7 +407,7 @@
 
     <div class="flex items-center gap-2" style="flex:1;justify-content:flex-end;min-width:0">
       <span id="ping-status" style="color:#7a3030;white-space:nowrap;min-width:70px;text-align:right">● offline</span>
-      <span style="font-size:.6rem;color:#2d6a3f;white-space:nowrap">Feito para Duquesa 💚</span>
+      <span style="font-size:.6rem;color:#2d6a3f;white-space:nowrap">by Hector Silva</span>
       <button id="btn-logout"
         class="text-gray-600 rounded px-1" style="background:none;font-size:1.1rem;flex-shrink:0"><span class="material-icons">logout</span></button>
     </div>
@@ -382,8 +416,39 @@
   <!-- CONTROLS AREA -->
   <div class="flex-1 flex items-center px-2 py-2 gap-2" style="min-height:0">
 
-    <!-- ═══ LEFT SIDE ═══ -->
+    <!-- LEFT SIDE -->
     <div class="flex flex-col items-center justify-between flex-1">
+
+      <!-- CONSOLE MODE LEFT: L1/L2 + joystick -->
+      <div id="console-left" class="hidden flex-col items-center justify-center h-full gap-3">
+        <div class="flex gap-2 items-center">
+          <button class="console-seg-btn" id="btn-console-seg-l1">Seg.</button>
+          <button class="shoulder" id="btn-console-l1" style="font-size:.85rem;padding:8px 16px">L1</button>
+          <button class="shoulder" id="btn-console-l2" style="font-size:.85rem;padding:8px 16px">L2</button>
+          <button class="console-seg-btn" id="btn-console-seg-l2">Seg.</button>
+        </div>
+        <!-- Left joystick for WASD analog -->
+        <div class="stick-zone" id="wasd-zone-console" style="width:110px;height:110px">
+          <div class="stick-knob" id="wasd-knob-console" style="width:44px;height:44px"></div>
+        </div>
+        <!-- Setas -->
+        <div class="flex flex-col items-center gap-1">
+          <div class="wasd-key" id="arr-up-console" style="width:36px;height:36px">
+            <span class="material-icons" style="font-size:.9rem">arrow_upward</span>
+          </div>
+          <div class="flex gap-1">
+            <div class="wasd-key" id="arr-left-console" style="width:36px;height:36px">
+              <span class="material-icons" style="font-size:.9rem">arrow_back</span>
+            </div>
+            <div class="wasd-key" id="arr-down-console" style="width:36px;height:36px">
+              <span class="material-icons" style="font-size:.9rem">arrow_downward</span>
+            </div>
+            <div class="wasd-key" id="arr-right-console" style="width:36px;height:36px">
+              <span class="material-icons" style="font-size:.9rem">arrow_forward</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- GAME MODE LEFT: WASD joystick -->
       <div id="game-left" class="flex flex-col items-center justify-center h-full gap-3">
@@ -431,7 +496,7 @@
 
     </div>
 
-    <!-- ═══ CENTER ═══ -->
+    <!-- CENTER -->
     <div id="center-col" class="flex flex-col items-center justify-between py-1">
 
       <!-- Scroll pad (ambos os modos) -->
@@ -467,6 +532,20 @@
         <button class="shoulder text-xs" id="btn-game-tab" style="width:100%;text-align:center">TAB</button>
       </div>
 
+      <!-- SPACE (modo console) -->
+      <div id="console-space" class="hidden flex-col items-center gap-1 mt-3" style="width:100%">
+        <div class="flex gap-1" style="width:100%">
+          <button class="shoulder" id="btn-console-select" style="flex:1;text-align:center;font-size:.75rem">Select</button>
+          <button class="shoulder" id="btn-console-start" style="flex:1;text-align:center;font-size:.75rem">Start</button>
+        </div>
+        <button id="btn-console-space"
+          class="ctrl-btn py-3 rounded-xl font-bold"
+          style="width:100%;background:#1e1e1e;border-radius:10px;color:#999;border:1px solid #333;font-size:.95rem">
+          SPACE
+        </button>
+        <button class="shoulder text-xs" id="btn-console-tab" style="width:100%;text-align:center">TAB</button>
+      </div>
+
       <!-- GTA extra buttons -->
       <div id="gta-space" class="hidden flex-col items-center gap-1 mt-3" style="width:100%">
         <div class="flex gap-1" style="width:100%">
@@ -484,17 +563,17 @@
 
     </div>
 
-    <!-- ═══ RACE RIGHT: pedais ═══ -->
+    <!-- RACE RIGHT: pedais -->
     <div id="race-right" class="hidden flex-row flex-1 py-1">
       <img id="pedal-accel" src="/gamepad/icons/accelerator.svg" alt="Acelerador" class="pedal" draggable="false" oncontextmenu="return false"/>
       <img id="pedal-brake" src="/gamepad/icons/brake.svg" alt="Freio" class="pedal" draggable="false" oncontextmenu="return false"/>
     </div>
 
-    <!-- ═══ RIGHT SIDE ═══ -->
+    <!-- RIGHT SIDE -->
     <div id="default-right" class="flex flex-col items-center justify-between flex-1">
 
-      <!-- Mouse buttons (LMB / RMB) — ambos os modos -->
-      <div class="flex gap-4 justify-center w-full pt-1" style="align-items:center">
+      <!-- Mouse buttons (LMB / RMB) — game/gta/pc modes -->
+      <div id="mouse-btns-row" class="flex gap-4 justify-center w-full pt-1" style="align-items:center">
         <button id="btn-hold-left" class="hidden shoulder text-xs" style="padding:8px 4px">Seg.</button>
         <button class="mouse-btn" id="lmb-btn">
           <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -517,8 +596,16 @@
         <button id="btn-hold-right" class="hidden shoulder text-xs" style="padding:8px 4px">Seg.</button>
       </div>
 
-      <!-- Mouse joystick -->
-      <div class="flex flex-col items-center gap-1 flex-1 justify-center">
+      <!-- Console R1/R2 row -->
+      <div id="console-r-row" class="hidden gap-3 justify-center w-full pt-1" style="align-items:center">
+        <button class="console-seg-btn" id="btn-console-seg-r1">Seg.</button>
+        <button class="shoulder" id="btn-console-r1" style="font-size:.85rem;padding:8px 16px">R1</button>
+        <button class="shoulder" id="btn-console-r2" style="font-size:.85rem;padding:8px 16px">R2</button>
+        <button class="console-seg-btn" id="btn-console-seg-r2">Seg.</button>
+      </div>
+
+      <!-- Mouse joystick (game/gta/pc) -->
+      <div id="mouse-stick-area" class="flex flex-col items-center gap-1 flex-1 justify-center">
         <div class="stick-zone" id="mouse-zone" style="width:130px;height:130px">
           <div class="stick-knob" id="mouse-knob" style="width:52px;height:52px"></div>
         </div>
@@ -540,6 +627,17 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Console face buttons (X □ ○ △) — liquid glass -->
+      <div id="console-face-btns" class="hidden flex-col items-center flex-1 justify-center" style="gap:14px;padding-top:12px">
+        <button class="console-face-btn console-face-btn-tri" id="btn-console-tri"><span class="material-icons" style="font-size:1.6rem">change_history</span></button>
+        <div style="display:flex;gap:30px;align-items:center">
+          <button class="console-face-btn console-face-btn-sq" id="btn-console-sq"><span class="material-icons" style="font-size:1.9rem">crop_square</span></button>
+          <div style="width:30px"></div>
+          <button class="console-face-btn console-face-btn-ci" id="btn-console-ci"><span class="material-icons" style="font-size:1.6rem">radio_button_unchecked</span></button>
+        </div>
+        <button class="console-face-btn console-face-btn-x" id="btn-console-x"><span class="material-icons" style="font-size:1.6rem">close</span></button>
       </div>
 
     </div>
@@ -573,7 +671,7 @@
 
 try { screen.orientation.lock('landscape').catch(()=>{}); } catch {}
 
-// ── Responsive layout ────────────────────────────────────────────────
+// Responsive layout
 /** Scales joystick zones proportionally to the viewport height. */
 function applyResponsive() {
   const h = window.innerHeight;
@@ -587,19 +685,21 @@ function applyResponsive() {
   mz.style.width = mz.style.height = stickSize + 'px';
   mk.style.width = mk.style.height = knobSize + 'px';
 
-  const wz = document.getElementById('wasd-zone');
-  const wk = document.getElementById('wasd-knob');
-  wz.style.width = wz.style.height = stickSmall + 'px';
-  wk.style.width = wk.style.height = knobSmall + 'px';
+  for (const [zid, kid] of [['wasd-zone','wasd-knob'],['wasd-zone-console','wasd-knob-console']]) {
+    const wz = document.getElementById(zid);
+    const wk = document.getElementById(kid);
+    if (wz) { wz.style.width = wz.style.height = stickSmall + 'px'; }
+    if (wk) { wk.style.width = wk.style.height = knobSmall + 'px'; }
+  }
 }
 applyResponsive();
 window.addEventListener('resize', applyResponsive);
 
-// ── State ─────────────────────────────────────────────────────────────────
+// State
 let mode = 'game', dc = null, pc = null, ws = null;
 const CONTROLLER_ID = 'controller-1', AGENT_ID = 'agent-windows';
 
-// ── Send ───────────────────────────────────────────────────────────────────
+// Send
 /**
  * Sends a JSON command over the WebRTC DataChannel.
  * Drops the message if the channel is not open or the send buffer is full.
@@ -612,10 +712,10 @@ function send(cmd) {
   dc.send(JSON.stringify(cmd));
 }
 
-// ── Sensitivity ──────────────────────────────────────────────────────────
+// Sensitivity
 let _sensBonus = 0; // 0–100 extra multiplier added on top of mode speed
 
-// ── Mouse joystick tick ───────────────────────────────────────────────────
+// Mouse joystick tick
 // Sends accumulated mouse velocity at ~60 fps to smooth out movement.
 let _mouseVx = 0, _mouseVy = 0;
 setInterval(() => {
@@ -624,7 +724,7 @@ setInterval(() => {
   }
 }, 16);
 
-// ── Mode ──────────────────────────────────────────────────────────────────
+// Mode
 /**
  * Switches the UI layout between 'game', 'gta', and 'pc' modes.
  * Shows/hides the relevant control groups and resets any held mouse buttons.
@@ -635,6 +735,8 @@ function setMode(m) {
   mode = m;
   document.getElementById('btn-mode-game').style.cssText = m==='game'
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
+  document.getElementById('btn-mode-console').style.cssText = m==='console'
+    ? 'background:#2a0f4a;color:#c084fc' : 'background:#0d0d0d;color:#444';
   document.getElementById('btn-mode-gta').style.cssText = m==='gta'
     ? 'background:#4a1a0f;color:#fa9060' : 'background:#0d0d0d;color:#444';
   document.getElementById('btn-mode-race').style.cssText = m==='race'
@@ -643,12 +745,15 @@ function setMode(m) {
     ? 'background:#0f2a4a;color:#60a5fa' : 'background:#0d0d0d;color:#444';
 
   const isRace = m === 'race';
+  const isConsole = m === 'console';
   show('game-left',     m==='game' || m==='gta' || isRace);
+  show('console-left',  isConsole);
   show('pc-left',       m==='pc');
   show('pc-center',     m==='pc');
   show('game-space',    m==='game');
+  show('console-space', isConsole);
   show('gta-space',     m==='gta');
-  show('top-left-game', m==='game');
+  show('top-left-game', m==='game' || isConsole);
   show('top-left-gta',  m==='gta');
   show('top-left-race', isRace);
   show('top-left-pc',   m==='pc');
@@ -658,6 +763,15 @@ function setMode(m) {
   document.getElementById('game-mod-btns').classList.toggle('flex',   m === 'game');
   document.getElementById('gta-run-btns').classList.toggle('hidden', m !== 'gta');
   document.getElementById('gta-run-btns').classList.toggle('flex',   m === 'gta');
+  // mouse vs console face buttons
+  document.getElementById('mouse-btns-row').classList.toggle('hidden', isConsole);
+  document.getElementById('mouse-btns-row').classList.toggle('flex',   !isConsole);
+  document.getElementById('console-r-row').classList.toggle('hidden', !isConsole);
+  document.getElementById('console-r-row').classList.toggle('flex',    isConsole);
+  document.getElementById('mouse-stick-area').classList.toggle('hidden', isConsole);
+  document.getElementById('mouse-stick-area').classList.toggle('flex',   !isConsole);
+  document.getElementById('console-face-btns').classList.toggle('hidden', !isConsole);
+  document.getElementById('console-face-btns').classList.toggle('flex',    isConsole);
   // tamanho do joystick WASD: maior no modo corrida
   const wz = document.getElementById('wasd-zone');
   const wk = document.getElementById('wasd-knob');
@@ -683,7 +797,7 @@ function show(id, visible) {
   el.classList.toggle('flex',    visible);
 }
 
-// ── Connection status UI ─────────────────────────────────────────────────
+// Connection status UI
 /** Step metadata: icon name, label text, active colour. */
 const _stepInfo = {
   ws:   ['sync', 'Conectando ao servidor...', '#60a5fa'],
@@ -723,7 +837,7 @@ function setConnStatus(msg, color) {
   document.getElementById('conn-status-text').style.color = color || '#555';
 }
 
-// ── Connect ───────────────────────────────────────────────────────────────
+// Connect
 let _wsUrl = 'wss://game.mexpenses.com.br/ws';
 let _connTimeout = null; // guards against hanging connection attempts
 
@@ -834,7 +948,7 @@ async function startPeer() {
   ws.send(JSON.stringify({ type:'offer', to:AGENT_ID, sdp:offer.sdp }));
 }
 
-// ── Ping / RTT measurement ────────────────────────────────────────────────
+// Ping / RTT measurement
 let _pingInterval = null;
 
 /** Starts sending ping commands every 2 s to measure round-trip latency. */
@@ -877,7 +991,7 @@ function setStatus(ok) {
   }
 }
 
-// ── WASD toggle keys ──────────────────────────────────────────────────────
+// WASD toggle keys
 // Each WASD key can be toggled (tap to hold) independently of the joystick.
 const toggleState = { w:false, a:false, s:false, d:false };
 const stickState  = { w:false, a:false, s:false, d:false };
@@ -892,32 +1006,36 @@ document.querySelectorAll('.wasd-key').forEach(el => {
   });
 });
 
-// ── WASD joystick ─────────────────────────────────────────────────────────
+// WASD joystick
 // Translates normalised joystick position into keydown/keyup events.
 // Toggle-held keys are not overridden by the joystick.
-makeStick('wasd-zone', 'wasd-knob', 55, (nx, ny) => {
-  const t = 0.35;
-  const isRace = mode === 'race';
-  const dirs = { w: !isRace && ny < -t, s: !isRace && ny > t, a: nx < -t, d: nx > t };
-  for (const [k, on] of Object.entries(dirs)) {
-    if (on && !stickState[k]) {
-      stickState[k] = true;
-      if (!toggleState[k]) send({ action:'keydown', key:k });
-    } else if (!on && stickState[k]) {
-      stickState[k] = false;
-      if (!toggleState[k]) send({ action:'keyup', key:k });
+function makeWasdStick(zoneId, knobId, radius) {
+  makeStick(zoneId, knobId, radius, (nx, ny) => {
+    const t = 0.35;
+    const isRace = mode === 'race';
+    const dirs = { w: !isRace && ny < -t, s: !isRace && ny > t, a: nx < -t, d: nx > t };
+    for (const [k, on] of Object.entries(dirs)) {
+      if (on && !stickState[k]) {
+        stickState[k] = true;
+        if (!toggleState[k]) send({ action:'keydown', key:k });
+      } else if (!on && stickState[k]) {
+        stickState[k] = false;
+        if (!toggleState[k]) send({ action:'keyup', key:k });
+      }
     }
-  }
-}, () => {
-  for (const k of ['w','a','s','d']) {
-    if (stickState[k]) {
-      stickState[k] = false;
-      if (!toggleState[k]) send({ action:'keyup', key:k });
+  }, () => {
+    for (const k of ['w','a','s','d']) {
+      if (stickState[k]) {
+        stickState[k] = false;
+        if (!toggleState[k]) send({ action:'keyup', key:k });
+      }
     }
-  }
-});
+  });
+}
+makeWasdStick('wasd-zone', 'wasd-knob', 55);
+makeWasdStick('wasd-zone-console', 'wasd-knob-console', 55);
 
-// ── Mouse joystick ────────────────────────────────────────────────────────
+// Mouse joystick
 // Converts joystick position into a velocity vector sent on each tick.
 // GTA mode inverts the Y axis to match in-game camera behaviour.
 makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
@@ -928,7 +1046,7 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
   _mouseVy = ny * factor * speed;
 }, () => { _mouseVx = 0; _mouseVy = 0; }, true);
 
-// ── Scroll pad ────────────────────────────────────────────────────────────
+// Scroll pad
 // Tracks pointer delta on the scroll pad and emits scroll commands.
 (function() {
   const pad = document.getElementById('scroll-pad');
@@ -961,7 +1079,7 @@ makeStick('mouse-zone', 'mouse-knob', 65, (nx, ny, dist) => {
   pad.addEventListener('pointercancel', e => { if (e.pointerId === activeId) activeId = null; });
 })();
 
-// ── Generic stick factory ─────────────────────────────────────────────────
+// Generic stick factory
 /**
  * Creates a virtual joystick inside a circular zone element.
  *
@@ -1021,7 +1139,7 @@ function makeStick(zoneId, knobId, radius, onMove, onRelease, continuous) {
   zone.addEventListener('pointercancel', release);
 }
 
-// ── Toggle key ────────────────────────────────────────────────────────────
+// Toggle key
 const _toggleKeys = {};
 function toggleKey(key, btnId) {
   _toggleKeys[key] = !_toggleKeys[key];
@@ -1032,7 +1150,7 @@ function toggleKey(key, btnId) {
   btn.style.color = on ? '#60a5fa' : '';
 }
 
-// ── Mouse hold (GTA) ──────────────────────────────────────────────────────
+// Mouse hold (GTA)
 /**
  * Toggles a mouse button between held-down and released states.
  * Used in GTA mode to hold aim (RMB) or fire (LMB) without keeping a finger pressed.
@@ -1099,7 +1217,7 @@ function onMouseBtnUp(button) {
   makeSegBtn('btn-hold-right', 'right');
 })();
 
-// ── Keyboard overlay ──────────────────────────────────────────────────────
+// Keyboard overlay
 let shiftOn = false;
 
 /** Toggles the full keyboard overlay visibility. */
@@ -1122,14 +1240,14 @@ function kbToggleShift() {
   document.querySelectorAll('.kb-key').forEach(k => k.style.color = shiftOn ? '#60a5fa' : '');
 }
 
-// ── Fullscreen guard ─────────────────────────────────────────────────────
+// Fullscreen guard
 document.addEventListener('fullscreenchange', () => {
   const overlay = document.getElementById('fullscreen-overlay');
   const isFs = !!document.fullscreenElement;
   overlay.style.display = isFs ? 'none' : 'flex';
 });
 
-// ── Pedais corrida ───────────────────────────────────────────────────────
+// Pedais corrida
 // Usa setPointerCapture para garantir que o keydown/keyup funcione
 // mesmo com outro dedo no joystick simultaneamente.
 (function() {
@@ -1161,7 +1279,7 @@ document.addEventListener('fullscreenchange', () => {
   makePedal('pedal-brake', 's');
 })();
 
-// ── Button registration helpers ───────────────────────────────────────────
+// Button registration helpers
 /**
  * Registra um botão de ação (keydown/keyup) com setPointerCapture.
  * @param {string} id
@@ -1236,7 +1354,7 @@ function regArrow(id, key) {
   el.addEventListener('pointercancel', up);
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────
+// Entry point
 // Botões de ação simples (keypress)
 regKey('btn-esc-game',  'escape', 'hold');
 regKey('btn-esc-gta',   'escape', 'hold');
@@ -1255,24 +1373,66 @@ regKey('btn-game-tab',  'tab',   'hold');
 regKey('btn-pc-tab',    'tab',   'hold');
 regKey('btn-pc-enter',  'return','hold');
 regKey('btn-pc-backspace','backspace','hold');
+// Console buttons
+regKey('btn-console-x',      'k',         'hold');
+regKey('btn-console-sq',     'j',         'hold');
+regKey('btn-console-ci',     'l',         'hold');
+regKey('btn-console-tri',    'i',         'hold');
+regKey('btn-console-r1',     '3',         'hold');
+regKey('btn-console-r2',     'e',         'hold');
+regKey('btn-console-l1',     '3',         'hold');
+regKey('btn-console-l2',     'e',         'hold');
+regKey('btn-console-select', 'backspace', 'hold');
+regKey('btn-console-start',  'return',    'hold');
+regKey('btn-console-tab',    'tab',       'hold');
 
 // Botões hold (keydown+keyup)
-regKey('btn-space',     'space', 'hold');
-regKey('btn-gta-space', 'space', 'hold');
+regKey('btn-space',         'space', 'hold');
+regKey('btn-gta-space',     'space', 'hold');
+regKey('btn-console-space', 'space', 'hold');
 
 // Setas direcionais
 regArrow('arr-up',    'up');
 regArrow('arr-down',  'down');
 regArrow('arr-left',  'left');
 regArrow('arr-right', 'right');
+regArrow('arr-up-console',    'up');
+regArrow('arr-down-console',  'down');
+regArrow('arr-left-console',  'left');
+regArrow('arr-right-console', 'right');
 
 // Botões toggle (click)
-regClick('btn-mode-game',  () => setMode('game'));
-regClick('btn-mode-gta',   () => setMode('gta'));
-regClick('btn-mode-race',  () => setMode('race'));
-regClick('btn-mode-pc',    () => setMode('pc'));
-regClick('btn-mode-sens',  () => document.getElementById('sens-overlay').classList.add('open'));
-regClick('btn-sens-close', () => document.getElementById('sens-overlay').classList.remove('open'));
+regClick('btn-mode-game',    () => setMode('game'));
+regClick('btn-mode-console', () => setMode('console'));
+regClick('btn-mode-gta',     () => setMode('gta'));
+regClick('btn-mode-race',    () => setMode('race'));
+regClick('btn-mode-pc',      () => setMode('pc'));
+regClick('btn-mode-sens',    () => document.getElementById('sens-overlay').classList.add('open'));
+regClick('btn-sens-close',   () => document.getElementById('sens-overlay').classList.remove('open'));
+
+// Seg. buttons para L1/L2/R1/R2 no console — estado independente por tecla
+(function() {
+  const _consoleSeg = {}; // key -> held boolean
+
+  function makeConsoleSeg(id, key) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    _consoleSeg[key] = false;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      _consoleSeg[key] = !_consoleSeg[key];
+      const on = _consoleSeg[key];
+      send({ action: on ? 'keydown' : 'keyup', key });
+      el.classList.toggle('held', on);
+    });
+  }
+
+  makeConsoleSeg('btn-console-seg-l1', '3');
+  makeConsoleSeg('btn-console-seg-l2', 'e');
+  makeConsoleSeg('btn-console-seg-r1', '3');
+  makeConsoleSeg('btn-console-seg-r2', 'e');
+})();
 
 document.getElementById('sens-slider').addEventListener('input', function() {
   _sensBonus = +this.value;
